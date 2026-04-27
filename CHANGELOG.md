@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-27 — v1.1.0 (manuscript revision)
+
+- Moved manuscript and reviewer comments to `docs/`.
+- TODO: add revision summary here after edits are complete.
+
 ## 2026-04-18 — HPVsim v2.2.6 lift
 
 - Split every plot script into a VM-side `--run-sim` step that saves lightweight CSVs and a local plot step that reads them.

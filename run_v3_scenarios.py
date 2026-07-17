@@ -176,8 +176,13 @@ def _run_one(seed, vx_intv, calib_pars, n_agents, ms, stop):
                 cum_cancer_deaths=np.asarray(r.hpvtotal.cum_cancer_deaths, float))
 
 
-def run(scenarios, calib_pars, seeds, n_agents, ms, stop, serial):
-    """Return {scen_label: {metric: (year, mean, low, high)}}."""
+def run(scenarios, calib_pars, seeds, n_agents, ms, stop, serial,
+        outdir=None, coverage_arr=None, efficacy_arr=None):
+    """Return {scen_label: {metric: (year, mean, low, high)}}.
+
+    Saves incrementally after each scenario (once Baseline is in) so a killed
+    long run still leaves usable partial CSVs.
+    """
     out = sc.objdict()
     for label, vx_intv in scenarios.items():
         iterkwargs = dict(seed=list(seeds))
@@ -194,6 +199,8 @@ def run(scenarios, calib_pars, seeds, n_agents, ms, stop, serial):
         print(f'  {label}: cum_cancers[2025-2100] mean='
               f'{agg["cum_cancers"]["mean"][-1] - np.interp(2025, year, agg["cum_cancers"]["mean"]):.0f}',
               flush=True)
+        if outdir is not None and 'Baseline' in out:
+            save_outputs(out, coverage_arr, efficacy_arr, outdir)
     return out
 
 
@@ -269,7 +276,8 @@ if __name__ == '__main__':
     print(f'Running {len(scenarios)} scenarios x {len(args.seeds)} seeds '
           f'(n_agents={args.n_agents}, ms={args.ms}, stop={args.stop})', flush=True)
     results = run(scenarios, calib_pars, args.seeds, args.n_agents, args.ms,
-                  args.stop, args.serial)
+                  args.stop, args.serial, outdir=args.outdir,
+                  coverage_arr=coverage_arr, efficacy_arr=efficacy_arr)
     save_outputs(results, coverage_arr, efficacy_arr, args.outdir)
 
     manifest_path = Path(args.outdir) / 'manifest.json'

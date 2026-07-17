@@ -1,0 +1,18 @@
+{
+  "scenarios": {
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "coverage": [
+      0.5,
+      0.9
+    ],
+    "n_agents": 10000,
+    "stop": 2100,
+    "efficacy_scen": "equiv",
+    "hpvsim_version": "2.3.1",
+    "date": "2026-07-17"
+  }
+}

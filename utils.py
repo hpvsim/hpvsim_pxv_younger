@@ -9,6 +9,15 @@ import hpvsim as hpv
 from scipy.stats import norm, lognorm
 import pandas as pd
 
+# The behavior/dwelltime analyzers below use the v2 people/network internals
+# (n_rships, current_partners, level0) and the v2 ``hpv.Analyzer`` base, none of
+# which exist in hpvsim v3. They are retained for the patched-v2.3.1 reference
+# env. Under v3 there is no ``hpv.Analyzer``; fall back to ``object`` so this
+# module still imports (its pure helpers -- set_font, read_debut_data,
+# *_percentiles_to_pars -- are shared by the v3 Fig S1 plotter). The v3 ports of
+# AFS / prop_married / casual-degree live in ``run_v3_behavior.py``.
+_AnalyzerBase = getattr(hpv, 'Analyzer', object)
+
 
 def set_font(size=None, font='Libertinus Sans'):
     """ Set a custom font """
@@ -41,7 +50,7 @@ def lognorm_params(par1, par2):
     return shape, scale
 
 
-class dwelltime_by_genotype(hpv.Analyzer):
+class dwelltime_by_genotype(_AnalyzerBase):
     '''
     Determine the age at which people with cervical cancer were causally infected and
     time spent between infection and cancer.
@@ -93,7 +102,7 @@ class dwelltime_by_genotype(hpv.Analyzer):
             self.median_age_causal[gtype] = np.quantile(self.age_causal[gtype], 0.5)
 
 
-class age_causal(hpv.Analyzer):
+class age_causal(_AnalyzerBase):
     '''
     Determine the age at which people with cervical cancer were causally infected and
     time spent between infection and cancer.
@@ -237,7 +246,7 @@ def read_debut_data(dist_type='lognormal'):
     return countries, dff, df2, rvs
 
 
-class AFS(hpv.Analyzer):
+class AFS(_AnalyzerBase):
     def __init__(self, bins=None, cohort_starts=None, **kwargs):
         super().__init__(**kwargs)
         self.bins = bins or np.arange(12,31,1)
@@ -278,7 +287,7 @@ class AFS(hpv.Analyzer):
         return
 
 
-class prop_married(hpv.Analyzer):
+class prop_married(_AnalyzerBase):
     def __init__(self, bins=None, years=None, includelast=True, yearstride=5, binspan=5, **kwargs):
         super().__init__(**kwargs)
         self.bins = bins or np.arange(15, 50, binspan)
@@ -320,7 +329,7 @@ class prop_married(hpv.Analyzer):
         self.df = pd.concat(self.dfs)
 
 
-class outcomes_by_year(hpv.Analyzer):
+class outcomes_by_year(_AnalyzerBase):
     def __init__(self, start_year=None, **kwargs):
         super().__init__(**kwargs)
         self.start_year = start_year

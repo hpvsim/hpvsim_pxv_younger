@@ -13,7 +13,7 @@ import pandas as pd
 import sciris as sc
 import seaborn as sns
 
-import run_sims as rs
+import run_v3_behavior as rb
 import utils as ut
 
 
@@ -116,7 +116,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.run_sim:
-        rs.get_sb_from_sims()
+        calib_pars = None
+        try:
+            calib_pars = sc.loadobj('results/nigeria_pars.obj')
+            calib_pars.pop('hiv_pars', None)
+        except FileNotFoundError:
+            pass
+        rb.get_sb_from_sims(calib_pars=calib_pars)
         print(f'Saved sexual-behavior CSVs to results/')
     else:
         plot_sb(resfolder=args.resfolder, outpath=args.outpath)

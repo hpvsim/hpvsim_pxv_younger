@@ -168,12 +168,16 @@ def _run_one(seed, vx_intv, calib_pars, n_agents, ms, stop):
                        start=1960, stop=stop, n_agents=n_agents, ms=ms)
     sim.run()
     r = sim.results
+    # v3.0 release renamed the pooled results group hpvtotal -> all_hpv.
+    pooled = getattr(r, 'all_hpv', None)
+    if pooled is None:
+        pooled = r.hpvtotal
     tv = np.array([t.year if hasattr(t, 'year') else int(t) for t in r.timevec])
     return dict(year=tv,
-                cancers=np.asarray(r.hpvtotal.new_cancers, float),
-                cancer_deaths=np.asarray(r.hpvtotal.new_cancer_deaths, float),
-                cum_cancers=np.asarray(r.hpvtotal.cum_cancers, float),
-                cum_cancer_deaths=np.asarray(r.hpvtotal.cum_cancer_deaths, float))
+                cancers=np.asarray(pooled.new_cancers, float),
+                cancer_deaths=np.asarray(pooled.new_cancer_deaths, float),
+                cum_cancers=np.asarray(pooled.cum_cancers, float),
+                cum_cancer_deaths=np.asarray(pooled.cum_cancer_deaths, float))
 
 
 def run(scenarios, calib_pars, seeds, n_agents, ms, stop, serial,

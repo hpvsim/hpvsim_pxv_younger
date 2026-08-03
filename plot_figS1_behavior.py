@@ -98,11 +98,13 @@ def plot_sb(dist_type='lognormal', resfolder='results', outpath='figures/figS1_n
             f'Mean: {row["mean"]:.1f}\n'
             f'Median: {row["median"]:.1f}\n'
             f'Std: {row["std"]:.1f}\n'
-            f'%>20: {row["pct_gt_20"]:.2f}\n'
+            f'%>20: {row["pct_gt_20"]:.2f}'
         )
-        ax.text(15, 0.5, stats)
+        # Anchor inside the panel (axis-relative) so it doesn't float off-axis
+        # when the y-limits differ between datasets, which under layout='tight'
+        # otherwise inflates the axes bbox and opens a large gap between rows.
+        ax.text(0.62, 0.95, stats, transform=ax.transAxes, va='top', fontsize=11)
 
-    fig.tight_layout()
     plt.savefig(outpath, dpi=100)
 
 

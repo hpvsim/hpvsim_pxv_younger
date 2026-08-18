@@ -3,6 +3,8 @@ Define an HPVsim simulation for Nigeria
 '''
 
 # Standard imports
+import os
+import sys
 import numpy as np
 import sciris as sc
 import hpvsim as hpv
@@ -13,7 +15,7 @@ import utils as ut
 # %% Settings and filepaths
 
 # Debug switch
-debug = 0  # Run with smaller population sizes and in serial 
+debug = 0  # Run with smaller population sizes and in serial
 do_shrink = True  # Do not keep people when running sims (saves memory)
 
 # Run settings
@@ -248,23 +250,26 @@ def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
 
 def get_sb_from_sims(verbose=-1, calib_pars=None, debug=False):
-    '''
-    Run sims with the sexual debut parameters inferred from DHS data, and save
-    the proportion of people of each age who've ever had sex
-    '''
+    """Extract sexual-behavior fits (AFS, prop_married, age-diffs, casual-partner counts).
 
+    IMPORTANT: This is the ONE code path in the project where do_shrink=False
+    is legal. It uses un-shrunk sim state to read the edge table for
+    behavior post-processing. Never call from calibration or scenario runs
+    — box crashes from RAM. See memory feedback_do_shrink_calibration.
+    """
 
     sim = run_sim(
         calib_pars=calib_pars,
-        analyzers=[ut.AFS(), ut.prop_married(), hpv.snapshot(timepoints=['2020'])],
+        analyzers=[ut.AFS(), ut.prop_married()],
         debug=debug,
         verbose=verbose,
         do_save=False,
+        do_shrink=False,
     )
 
     # Save output on age at first sex (AFS)
     dfs = sc.autolist()
-    a = sim.get_analyzer('AFS')
+    a = sim.analyzers['AFS']
     for cs, cohort_start in enumerate(a.cohort_starts):
         df = pd.DataFrame()
         df['age'] = a.bins
@@ -276,52 +281,75 @@ def get_sb_from_sims(verbose=-1, calib_pars=None, debug=False):
     afs_df.to_csv(f'results/model_sb_AFS.csv', index=False)
 
     # Save output on proportion married
-    a = sim.get_analyzer('prop_married')
+    a = sim.analyzers['prop_married']
     pm_df = a.df
     pm_df.to_csv(f'results/model_sb_prop_married.csv', index=False)
 
-    # Save output on age differences between partners
-    agediff_df = pd.DataFrame()
-    snapshot = sim.get_analyzer('snapshot')
-    ppl = snapshot.snapshots[0]
-    age_diffs = ppl.contacts['m']['age_m'] - ppl.contacts['m']['age_f']
-    agediff_df['age_diffs'] = age_diffs
-    # Save age-differences as a precomputed KDE grid (300 rows) instead of raw events
-    from scipy.stats import gaussian_kde
-    kde = gaussian_kde(np.asarray(age_diffs))
-    x = np.linspace(-15, 35, 300)
-    pd.DataFrame({'x': x, 'density': kde(x)}).to_csv('results/age_diffs_kde.csv', index=False)
+    # Age differences — read the sexual network edge table at end-of-sim.
+    # p1/p2 are raw uids (up to n_uids); people.age/female are dense over auids.
+    # Build uid-indexed arrays first, then index by p1/p2 directly.
+    people = sim.people
+    auids = np.asarray(people.auids)
+    n_uids = people.n_uids
 
-    # Save output on the number of casual relationships
+    age_uid = np.full(n_uids, np.nan)
+    age_uid[auids] = np.asarray(people.age)
+    female_uid = np.zeros(n_uids, dtype=bool)
+    female_uid[auids] = np.asarray(people.female)
+    level0_uid = np.zeros(n_uids, dtype=bool)
+    level0_uid[auids] = ~np.asarray(people.fine.values)  # non-multiscaled
+    alive_uid = np.zeros(n_uids, dtype=bool)
+    alive_uid[auids] = True  # auids are already the alive set
+
+    net = sim.networks.sexualnetwork
+    mask = net.edges_for_layer('m')
+    p1 = np.asarray(net.edges.p1)[mask]
+    p2 = np.asarray(net.edges.p2)[mask]
+    # Determine which end is male; compute (age_male - age_female)
+    age_diffs = np.where(female_uid[p1], age_uid[p2] - age_uid[p1], age_uid[p1] - age_uid[p2])
+    from scipy.stats import gaussian_kde
+    kde = gaussian_kde(age_diffs)
+    x = np.linspace(-15, 35, 300)
+    agediff_df = pd.DataFrame({'x': x, 'density': kde(x)})
+    agediff_df.to_csv('results/age_diffs_kde.csv', index=False)
+
+    # Casual partner counts by age bin — count casual-layer edges per uid.
+    cmask = net.edges_for_layer('c')
+    cp1 = np.asarray(net.edges.p1)[cmask]
+    cp2 = np.asarray(net.edges.p2)[cmask]
+    # partners[u] = number of casual edges touching agent u (uid-indexed)
+    partners = np.zeros(n_uids, dtype=int)
+    np.add.at(partners, cp1, 1)
+    np.add.at(partners, cp2, 1)
+
     binspan = 5
     bins = np.arange(15, 50, binspan)
-    snapshot = sim.get_analyzer('snapshot')
-    ppl = snapshot.snapshots[0]
+    # All condition arrays are uid-indexed (length n_uids)
+    general_conditions = female_uid & alive_uid & level0_uid & (age_uid >= 15)
+
     conditions = {}
-    general_conditions = ppl.is_female * ppl.alive * ppl.level0 * ppl.is_active
     for ab in bins:
-        conditions[ab] = (ppl.age >= ab) * (ppl.age < ab + binspan) * general_conditions
+        conditions[ab] = (age_uid >= ab) & (age_uid < ab + binspan) & general_conditions
 
     casual_partners = {(0, 1): sc.autolist(), (1, 2): sc.autolist(), (2, 3): sc.autolist(),
                        (3, 5): sc.autolist(), (5, 50): sc.autolist()}
     for cp in casual_partners.keys():
-        for ab, age_cond in conditions.items():
-            this_condition = conditions[ab] * (ppl.current_partners[1, :] >= cp[0]) * (
-                    ppl.current_partners[1, :] < cp[1])
-            casual_partners[cp] += len(hpv.true(this_condition))
+        for ab in bins:
+            this_condition = conditions[ab] & (partners >= cp[0]) & (partners < cp[1])
+            casual_partners[cp] += int(this_condition.sum())
 
     popsize = sc.autolist()
-    for ab, age_cond in conditions.items():
-        popsize += len(hpv.true(age_cond))
+    for ab in bins:
+        popsize += int(conditions[ab].sum())
 
     # Construct dataframe
     n_bins = len(bins)
-    partners = np.repeat([0, 1, 2, 3, 5], n_bins)
+    partners_col = np.repeat([0, 1, 2, 3, 5], n_bins)
     allbins = np.tile(bins, 5)
     counts = np.concatenate([val for val in casual_partners.values()])
     allpopsize = np.tile(popsize, 5)
     shares = counts / allpopsize
-    datadict = dict(bins=allbins, partners=partners, counts=counts, popsize=allpopsize, shares=shares)
+    datadict = dict(bins=allbins, partners=partners_col, counts=counts, popsize=allpopsize, shares=shares)
     casual_df = pd.DataFrame.from_dict(datadict)
 
     casual_df.to_csv(f'results/model_casual.csv', index=False)
@@ -366,6 +394,22 @@ def run_parsets(debug=False, verbose=.1, analyzers=None, save_results=True, **kw
 
 # %% Run as a script
 if __name__ == '__main__':
+
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--extract-behavior', action='store_true',
+                    help='Run get_sb_from_sims (un-shrunk sim; behavior CSVs). '
+                         'Not for calibration or scenario runs.')
+    args, _ = ap.parse_known_args()
+    if args.extract_behavior:
+        calib_pars = None
+        if os.path.exists('results/nigeria_pars.obj'):
+            _pars = sc.loadobj('results/nigeria_pars.obj')
+            # Discard v2-format files (nested 'genotype_pars' key); only use v3 flat dicts.
+            if isinstance(_pars, dict) and 'genotype_pars' not in _pars:
+                calib_pars = _pars
+        get_sb_from_sims(calib_pars=calib_pars, debug=debug)
+        sys.exit(0)
 
     # List of what to run
     to_run = [

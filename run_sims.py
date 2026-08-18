@@ -8,10 +8,7 @@ import sciris as sc
 import hpvsim as hpv
 import pandas as pd
 
-# Imports from this repository (lazy — utils.py is ported in a later task)
-import importlib as _il
-def _ut():
-    return _il.import_module('utils')
+import utils as ut
 
 # %% Settings and filepaths
 
@@ -182,7 +179,7 @@ def get_sb_from_sims(verbose=-1, calib_pars=None, debug=False):
 
     sim = run_sim(
         calib_pars=calib_pars,
-        analyzers=[_ut().AFS(), _ut().prop_married(), hpv.snapshot(timepoints=['2020'])],
+        analyzers=[ut.AFS(), ut.prop_married(), hpv.snapshot(timepoints=['2020'])],
         debug=debug,
         verbose=verbose,
         do_save=False,
@@ -329,7 +326,7 @@ if __name__ == '__main__':
 
     if 'plot_calib' in to_run:
         calib = plot_calib(save_pars=True, filestem='')
-        calib = _ut().shrink_calib(calib, n_results=200)
+        calib = ut.shrink_calib(calib, n_results=200)
         sc.saveobj(f'results/nigeria_calib_reduced.obj', calib)
 
     if 'run_parsets' in to_run:

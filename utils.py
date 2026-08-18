@@ -5,7 +5,7 @@ Utilities
 # Imports
 import sciris as sc
 import numpy as np
-import hpvsim as hpv
+import starsim as ss
 from scipy.stats import norm, lognorm
 import pandas as pd
 
@@ -39,96 +39,6 @@ def lognorm_params(par1, par2):
     scale = np.exp(mean)
     shape = sigma
     return shape, scale
-
-
-class dwelltime_by_genotype(hpv.Analyzer):
-    '''
-    Determine the age at which people with cervical cancer were causally infected and
-    time spent between infection and cancer.
-    '''
-
-    def __init__(self, start_year=None, **kwargs):
-        super().__init__(**kwargs)
-        self.start_year = start_year
-        self.years = None
-
-    def initialize(self, sim):
-        super().initialize(sim)
-        self.years = sim.yearvec
-        if self.start_year is None:
-            self.start_year = sim['start']
-        self.age_causal = dict()
-        self.age_cancer = dict()
-        self.dwelltime = dict()
-        self.median_age_causal = dict()
-        for gtype in range(sim['n_genotypes']):
-            self.age_causal[gtype] = []
-            self.age_cancer[gtype] = []
-        for state in ['precin', 'cin', 'total']:
-            self.dwelltime[state] = dict()
-            for gtype in range(sim['n_genotypes']):
-                self.dwelltime[state][gtype] = []
-
-    def apply(self, sim):
-        if sim.yearvec[sim.t] >= self.start_year:
-            cancer_genotypes, cancer_inds = (sim.people.date_cancerous == sim.t).nonzero()
-            if len(cancer_inds):
-                current_age = sim.people.age[cancer_inds]
-                date_exposed = sim.people.date_exposed[cancer_genotypes, cancer_inds]
-                dur_precin = sim.people.dur_precin[cancer_genotypes, cancer_inds]
-                dur_cin = sim.people.dur_cin[cancer_genotypes, cancer_inds]
-                total_time = (sim.t - date_exposed) * sim['dt']
-                for gtype in range(sim['n_genotypes']):
-                    gtype_inds = hpv.true(cancer_genotypes == gtype)
-                    self.dwelltime['precin'][gtype] += dur_precin[gtype_inds].tolist()
-                    self.dwelltime['cin'][gtype] += dur_cin[gtype_inds].tolist()
-                    self.dwelltime['total'][gtype] += total_time[gtype_inds].tolist()
-                    self.age_causal[gtype] += (current_age[gtype_inds] - total_time[gtype_inds]).tolist()
-                    self.age_cancer[gtype] += (current_age[gtype_inds]).tolist()
-        return
-
-    def finalize(self, sim=None):
-        ''' Convert things to arrays '''
-        for gtype in range(sim['n_genotypes']):
-            self.median_age_causal[gtype] = np.quantile(self.age_causal[gtype], 0.5)
-
-
-class age_causal(hpv.Analyzer):
-    '''
-    Determine the age at which people with cervical cancer were causally infected and
-    time spent between infection and cancer.
-    '''
-
-    def __init__(self, start_year=None, **kwargs):
-        super().__init__(**kwargs)
-        self.start_year = start_year
-        self.years = None
-
-    def initialize(self, sim):
-        super().initialize(sim)
-        self.years = sim.yearvec
-        if self.start_year is None:
-            self.start_year = sim['start']
-        self.age_causal = []
-        self.age_cancer = []
-        self.age_cin = []
-
-    def apply(self, sim):
-        if sim.yearvec[sim.t] >= self.start_year:
-            cancer_genotypes, cancer_inds = (sim.people.date_cancerous == sim.t).nonzero()
-            if len(cancer_inds):
-                current_age = sim.people.age[cancer_inds]
-                date_exposed = sim.people.date_exposed[cancer_genotypes, cancer_inds]
-                dur_cin = sim.people.dur_cin[cancer_genotypes, cancer_inds]
-                total_time = (sim.t - date_exposed) * sim['dt']
-                self.age_causal += (current_age - total_time).tolist()
-                self.age_cin += (current_age - dur_cin).tolist()
-                self.age_cancer += (current_age).tolist()
-        return
-
-    def finalize(self, sim=None):
-        ''' Convert things to arrays '''
-        return
 
 
 def percentiles_to_pars(x1, p1, x2, p2):
@@ -237,155 +147,177 @@ def read_debut_data(dist_type='lognormal'):
     return countries, dff, df2, rvs
 
 
-class AFS(hpv.Analyzer):
+class AFS(ss.Analyzer):
+    """
+    Proportion of agents currently in a partnership, by age bin and birth cohort.
+
+    Attributes exposed for get_sb_from_sims (Task 5):
+        cohort_starts  — 1-D array of cohort birth years
+        bins           — 1-D array of integer ages tracked
+        prop_active_f  — (n_cohorts, n_bins) float array, females
+        prop_active_m  — (n_cohorts, n_bins) float array, males
+
+    v3 notes:
+        - "currently sexually active" = has at least one edge in the sexual
+          network this tick (equivalent to v2's n_rships.sum()>0).
+        - Edge endpoints (p1, p2) are raw agent uids; alive-agent arrays
+          (age, female, fine) are dense over sim.people.auids, so we build
+          a uid-indexed has_partner boolean then slice it by auids.
+        - Females restricted to level0 (non-fine) agents, matching v2.
+        - Males unrestricted (matching v2).
+    """
     def __init__(self, bins=None, cohort_starts=None, **kwargs):
         super().__init__(**kwargs)
-        self.bins = bins or np.arange(12,31,1)
-        self.cohort_starts = cohort_starts
-        self.binspan = self.bins[-1]-self.bins[0]
+        self.name = 'AFS'
+        self.bins = bins if bins is not None else np.arange(12, 31, 1)
+        self._cohort_starts_arg = cohort_starts  # defer sim-dependent default to init_pre
+        self.cohort_starts = None
+        self._cohort_years = None   # 2D array (n_cohorts, binspan+1)
+        self.prop_active_f = None
+        self.prop_active_m = None
 
-    def initialize(self, sim):
-        super().initialize()
-        if self.cohort_starts is None:
-            first_cohort = sim['start'] + sim['burnin'] - 5
-            last_cohort = sim['end']-self.binspan
-            self.cohort_starts = sc.inclusiverange(first_cohort, last_cohort)
-            self.cohort_ends = self.cohort_starts+self.binspan
-            self.n_cohorts = len(self.cohort_starts)
-            self.cohort_years = np.array([sc.inclusiverange(i,i+self.binspan) for i in self.cohort_starts])
+    def init_pre(self, sim):
+        super().init_pre(sim)
+        binspan = int(self.bins[-1] - self.bins[0])
+        if self._cohort_starts_arg is not None:
+            self.cohort_starts = np.asarray(self._cohort_starts_arg)
+        else:
+            start_year = int(sim.timevec.years[0])
+            end_year   = int(sim.timevec.years[-1])
+            first_cohort = start_year - 5
+            last_cohort  = end_year - binspan
+            if last_cohort < first_cohort:
+                # Sim too short for default cohort window; use a single cohort
+                # anchored at start_year so step() still fires.
+                self.cohort_starts = np.array([start_year])
+            else:
+                self.cohort_starts = sc.inclusiverange(first_cohort, last_cohort)
+        self._cohort_years = np.array(
+            [sc.inclusiverange(int(cs), int(cs) + binspan) for cs in self.cohort_starts]
+        )
+        n_cohorts = len(self.cohort_starts)
+        n_bins = len(self.bins)
+        self.prop_active_f = np.zeros((n_cohorts, n_bins))
+        self.prop_active_m = np.zeros((n_cohorts, n_bins))
 
-        self.prop_active_f = np.zeros((self.n_cohorts,self.binspan+1))
-        self.prop_active_m = np.zeros((self.n_cohorts,self.binspan+1))
+    def step(self):
+        sim = self.sim
+        current_year = float(sim.timevec[sim.ti].years)
 
-    def apply(self, sim):
-        if sim.yearvec[sim.t] in self.cohort_years:
-            cohort_inds, bin_inds = sc.findinds(self.cohort_years, sim.yearvec[sim.t])
-            for ci,cohort_ind in enumerate(cohort_inds):
-                bin_ind = bin_inds[ci]
-                bin = self.bins[bin_ind]
+        # Find which (cohort, bin) slots fire this tick
+        cohort_inds, bin_inds = sc.findinds(self._cohort_years, current_year)
+        if not len(cohort_inds):
+            return
 
-                conditions_f = sim.people.is_female * sim.people.alive * (sim.people.age >= (bin-1)) * (sim.people.age < bin) * sim.people.level0
-                denom_inds_f = hpv.true(conditions_f)
-                num_conditions_f = conditions_f * (sim.people.n_rships.sum(axis=0)>0)
-                num_inds_f = hpv.true(num_conditions_f)
-                self.prop_active_f[cohort_ind,bin_ind] = len(num_inds_f)/len(denom_inds_f)
+        net = sim.networks[0]
+        people = sim.people
+        auids = np.asarray(people.auids)
+        age   = np.asarray(people.age)
+        female = np.asarray(people.female)
+        fine   = np.asarray(people.fine.values)
 
-                conditions_m = ~sim.people.is_female * sim.people.alive * (sim.people.age >= (bin-1)) * (sim.people.age < bin)
-                denom_inds_m = hpv.true(conditions_m)
-                num_conditions_m = conditions_m * (sim.people.n_rships.sum(axis=0)>0)
-                num_inds_m = hpv.true(num_conditions_m)
-                self.prop_active_m[ci,bin_ind] = len(num_inds_m)/len(denom_inds_m)
-        return
+        # uid-indexed has_partner (length n_uids, covers alive + dead slots)
+        has_partner_uid = np.zeros(people.n_uids, dtype=bool)
+        has_partner_uid[np.asarray(net.edges.p1)] = True
+        has_partner_uid[np.asarray(net.edges.p2)] = True
+        has_partner = has_partner_uid[auids]  # dense over alive agents
+
+        level0 = ~fine
+
+        for ci, cohort_ind in enumerate(cohort_inds):
+            bin_ind = bin_inds[ci]
+            b = self.bins[bin_ind]
+
+            in_age = (age >= (b - 1)) & (age < b)
+
+            denom_f = in_age & female & level0
+            n_denom_f = denom_f.sum()
+            if n_denom_f > 0:
+                self.prop_active_f[cohort_ind, bin_ind] = (denom_f & has_partner).sum() / n_denom_f
+
+            denom_m = in_age & ~female
+            n_denom_m = denom_m.sum()
+            if n_denom_m > 0:
+                self.prop_active_m[cohort_ind, bin_ind] = (denom_m & has_partner).sum() / n_denom_m
 
 
-class prop_married(hpv.Analyzer):
+class prop_married(ss.Analyzer):
+    """
+    Proportion of alive level0 females in a marital partnership, by age bin and year.
+
+    Attributes exposed for get_sb_from_sims (Task 5):
+        df — pd.DataFrame with columns [age, val, year], built in finalize().
+
+    v3 notes:
+        - "married" = has an edge in the marital ('m') layer of the sexual network
+          (layer index 0, i.e. net._layer_idx['m'] == 0).
+        - uid-indexed has_marital_partner boolean, sliced by auids for alive agents.
+        - Snapshot years are the integer years in sim.timevec; current year is
+          sim.timevec[sim.ti].years (a float), rounded to int for comparison.
+    """
     def __init__(self, bins=None, years=None, includelast=True, yearstride=5, binspan=5, **kwargs):
         super().__init__(**kwargs)
-        self.bins = bins or np.arange(15, 50, binspan)
-        self.years = years
-        self.dfs = sc.autolist()
-        self.df = None
+        self.name = 'prop_married'
+        self.binspan = binspan
+        self.bins = bins if bins is not None else np.arange(15, 50, binspan)
+        self._years_arg = years
+        self.years = None
         self.includelast = includelast
         self.yearstride = yearstride
-        self.binspan = binspan
+        self._dfs = sc.autolist()
+        self.df = None
 
-    def initialize(self, sim):
-        super().initialize()
-        if self.years is None:
-            start = sim['start'] + sim['burnin']
-            end = sim['end']
+    def init_pre(self, sim):
+        super().init_pre(sim)
+        if self._years_arg is not None:
+            self.years = np.asarray(self._years_arg)
+        else:
+            tv_years = sim.timevec.years
+            start = int(tv_years[0])
+            end   = int(tv_years[-1])
             self.years = np.arange(start, end, self.yearstride)
-            if self.includelast:
-                if end not in self.years:
-                    self.years = np.append(self.years, end)
+            if self.includelast and end not in self.years:
+                self.years = np.append(self.years, end)
 
-    def apply(self, sim):
-        if sim.yearvec[sim.t] in self.years:
+    def step(self):
+        sim = self.sim
+        current_year = int(sim.timevec[sim.ti].years)
+        if current_year not in self.years:
+            return
 
-            conditions = dict()
-            for ab in self.bins:
-                conditions[ab] = (sim.people.age >= ab) & (sim.people.age < ab+self.binspan) & sim.people.alive & sim.people.is_female & sim.people.level0
+        net = sim.networks[0]
+        people = sim.people
+        auids  = np.asarray(people.auids)
+        age    = np.asarray(people.age)
+        female = np.asarray(people.female)
+        fine   = np.asarray(people.fine.values)
+        level0 = ~fine
 
-            prop_married = sc.autolist()
-            for age_cond in conditions.values():
-                num_condition = age_cond & (sim.people.current_partners[0,:]>0)
-                prop_married += len(hpv.true(num_condition))/len(hpv.true(age_cond))
+        # Marital-layer edges only (layer index 0 = 'm')
+        layer_id = np.asarray(net.edges.layer_id)
+        m_mask = layer_id == net._layer_idx['m']
+        has_marital_uid = np.zeros(people.n_uids, dtype=bool)
+        has_marital_uid[np.asarray(net.edges.p1)[m_mask]] = True
+        has_marital_uid[np.asarray(net.edges.p2)[m_mask]] = True
+        has_marital = has_marital_uid[auids]  # dense over alive agents
 
-            d = dict(age=self.bins, val=prop_married)
-            df = pd.DataFrame().from_dict(d)
-            df['year'] = sim.yearvec[sim.t]
-            self.dfs += df
+        prop_vals = sc.autolist()
+        for ab in self.bins:
+            in_age = (age >= ab) & (age < ab + self.binspan)
+            denom_mask = in_age & female & level0
+            n_denom = denom_mask.sum()
+            if n_denom > 0:
+                prop_vals += float((denom_mask & has_marital).sum()) / n_denom
+            else:
+                prop_vals += 0.0
 
-    def finalize(self, sim):
-        self.df = pd.concat(self.dfs)
+        df = pd.DataFrame({'age': self.bins, 'val': prop_vals})
+        df['year'] = current_year
+        self._dfs += df
 
-
-class outcomes_by_year(hpv.Analyzer):
-    def __init__(self, start_year=None, **kwargs):
-        super().__init__(**kwargs)
-        self.start_year = start_year
-        self.interval = .25 #1
-        self.durations = np.arange(0, 51, self.interval)
-        result_keys = ['cleared', 'persisted', 'progressed', 'cancer', 'dead', 'total']
-        self.results = {rkey: np.zeros_like(self.durations) for rkey in result_keys}
-
-    def initialize(self, sim):
-        super().initialize(sim)
-        if self.start_year is None:
-            self.start_year = sim['start']
-
-    def apply(self, sim):
-        if sim.yearvec[sim.t] == self.start_year:
-
-            idx = ((sim.people.date_exposed == sim.t) & (sim.people.sex==0)).nonzero()  # Get people exposed on this step
-            inf_inds = idx[-1]
-            scale = sim.people.scale[inf_inds]
-            time_to_clear = (sim.people.date_clearance[idx] - sim.t)*sim['dt']
-            time_to_cancer = (sim.people.date_cancerous[idx] - sim.t)*sim['dt']
-            time_to_cin = (sim.people.date_cin[idx] - sim.t)*sim['dt']
-
-            # Count deaths. Note that there might be more people with a defined
-            # cancer death date than with a defined cancer date because this is
-            # counting all death, not just deaths resulting from infections on this
-            # time step.
-            time_to_cancer_death = (sim.people.date_dead_cancer[inf_inds] - sim.t)*sim['dt']
-
-            for idd, ddd in enumerate(self.durations):
-
-                dd = ddd-1e-3
-
-                dead = (time_to_cancer_death <= dd)
-                cleared = ~dead & (time_to_clear <= dd)
-                persisted = ~dead & ~cleared & ~(time_to_cin <= dd)  # Haven't yet cleared or progressed
-                progressed = ~dead & ~cleared & (time_to_cin <= dd) & ((time_to_clear > dd) | (time_to_cancer > dd))  # USing the ~ means that we also count nans
-                cancer = ~dead & (time_to_cancer <= dd)
-
-                dead_inds = hpv.true(dead)
-                cleared_inds = hpv.true(cleared)
-                persisted_inds = hpv.true(persisted)
-                progressed_inds = hpv.true(progressed)
-                cancer_inds = hpv.true(cancer)
-                derived_total = len(cleared_inds) + len(persisted_inds) + len(progressed_inds) + len(cancer_inds) + len(dead_inds)
-
-                if derived_total != len(inf_inds):
-                    errormsg = "Something is wrong!"
-                    raise ValueError(errormsg)
-
-                # self.results['cleared'][idd] += len(cleared_inds)
-                # self.results['persisted'][idd] += len(persisted_inds)
-                # self.results['progressed'][idd] += len(progressed_inds)
-                # self.results['cancer'][idd] += len(cancer_inds)
-                # self.results['dead'][idd] += len(dead_inds)
-                # self.results['total'][idd] += derived_total
-
-                # Version with scaling
-                scaled_total = sim.people.scale[inf_inds].sum()
-                self.results['cleared'][idd] += scale[cleared_inds].sum()
-                self.results['persisted'][idd] += scale[persisted_inds].sum()
-                self.results['progressed'][idd] += scale[progressed_inds].sum()
-                self.results['cancer'][idd] += scale[cancer_inds].sum()
-                self.results['dead'][idd] += scale[dead_inds].sum()
-                self.results['total'][idd] += scaled_total
+    def finalize(self):
+        super().finalize()
+        self.df = pd.concat(self._dfs, ignore_index=True) if self._dfs else pd.DataFrame()
 
 
 

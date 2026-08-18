@@ -155,6 +155,49 @@ def _load_calib_data():
     )
 
 
+def _network_build_fn(sim, calib_pars, **kwargs):
+    """Custom build_fn that routes network priors through make_sim's network
+    builder, then delegates remaining (genotype) pars to hpv.calibration.build_sim.
+
+    make_sim already pops m_cross_layer, f_cross_layer, m_partners, f_partners
+    out of calib_pars and passes them into hpv.SexualNetwork via
+    _network_pars(location, pars=network_overrides). We reconstruct the nested
+    dict form that make_sim expects for m_partners / f_partners (full layer
+    dicts: both 'm' and 'c'), then call make_sim(calib_pars=network_overrides)
+    to get a properly wired sim, and finally apply genotype pars via build_sim.
+    """
+    calib_pars = dict(calib_pars)  # don't mutate caller's copy
+
+    def _val(v):
+        """Extract sampled scalar from Optuna spec dict if needed."""
+        return v['value'] if isinstance(v, dict) and 'value' in v else v
+
+    # Reconstruct nested network dict form for make_sim.
+    network_calib = {}
+    for key in ('m_cross_layer', 'f_cross_layer'):
+        if key in calib_pars:
+            network_calib[key] = _val(calib_pars.pop(key))
+    for dotted_key, nested_key in (('m_partners.c.par1', 'm_partners'),
+                                    ('f_partners.c.par1', 'f_partners')):
+        if dotted_key in calib_pars:
+            network_calib[nested_key] = dict(
+                m=dict(dist='poisson1', par1=0.01),
+                c=dict(dist='poisson1', par1=_val(calib_pars.pop(dotted_key))),
+            )
+
+    # Carry AgeResults (and any other user analyzers) from the deep-copied sim.
+    # Exclude HPVTotal — hpv.Sim.__init__ auto-adds it; passing a second copy
+    # would collide on sim.results.all_hpv.
+    from hpvsim.cross_genotype import HPVTotal
+    analyzers = [a for a in sim.pars.get('analyzers', [])
+                 if not isinstance(a, HPVTotal)]
+    rebuilt = make_sim(calib_pars=network_calib, analyzers=analyzers)
+
+    # Apply remaining genotype pars (e.g. hi5.cancer_fn.transform_prob)
+    # via the default router, which handles dotted '<genotype>.<...>' paths.
+    return hpv.calibration.build_sim(rebuilt, calib_pars, **kwargs)
+
+
 def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
     edges, data = _load_calib_data()
@@ -170,15 +213,18 @@ def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
     # v3 calib_pars: flat dotted-key paths, each a {low, high, guess} dict.
     # beta dropped (v3 migration guide: not a useful lever).
-    # Network params (m_cross_layer, f_cross_layer, m_partners.c.par1,
-    # f_partners.c.par1) and sev_dist pruned: v3 build_sim only routes bare
-    # sim pars and '<genotype>.<...>' paths; network-layer pars have no
-    # supported routing in v3.
-    # dur_cin.par1/par2 pruned: v3 stores dur_cin as a ss.lognorm_ex
-    # distribution object (pars: mean/std), which does not support item
-    # assignment via build_sim's dict-walk. cancer_fn and cin_fn are plain
-    # dicts and route correctly.
+    # Network priors restored via _network_build_fn (custom build_fn that
+    # reconstructs nested make_sim form before calling hpv.calibration.build_sim
+    # for genotype pars). sev_dist confirmed absent from v3 sim.pars (correctly
+    # pruned). dur_cin.par1/par2 pruned: v3 stores dur_cin as a ss.lognorm_ex
+    # distribution object (not dict-subscriptable).
     calib_pars = {
+        # Network priors (routed via _network_build_fn)
+        'm_cross_layer':   dict(low=0.1,    high=0.7,   guess=0.3),
+        'f_cross_layer':   dict(low=0.05,   high=0.5,   guess=0.1),
+        'm_partners.c.par1': dict(low=0.1,  high=0.6,   guess=0.2),
+        'f_partners.c.par1': dict(low=0.1,  high=0.6,   guess=0.2),
+        # Genotype-transition priors (routed via hpv.calibration.build_sim)
         'hi5.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
         'hi5.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
         'ohr.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
@@ -187,6 +233,7 @@ def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
     calib = hpv.Calibration(
         sim, calib_pars,
+        build_fn=_network_build_fn,
         data=data,
         label='nigeria_calib',
         total_trials=n_trials, n_workers=n_workers,

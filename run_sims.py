@@ -118,55 +118,85 @@ def run_sim(calib_pars=None, analyzers=None, debug=debug, seed=1, verbose=.1, do
     return sim
 
 
+def _load_calib_data():
+    """Load the three Nigeria calibration CSVs as t-indexed DataFrames for hpv.Calibration data=."""
+    # Age bin edges matching the cancer-cases data (ages 0, 15, 20, ..., 85)
+    edges = np.array([0, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 100],
+                     dtype=float)
+    labels = [f'{int(edges[i])}-{int(edges[i+1])}' for i in range(len(edges) - 2)]
+    labels.append(f'{int(edges[-2])}+')
+    age_to_label = {int(edges[i]): labels[i] for i in range(len(labels))}
+
+    # Cancer cases by age (2020) — columns match AgeResults age-bin labels
+    cc = pd.read_csv('data/nigeria_cancer_cases.csv')
+    cancers_df = cc.pivot_table(index='year', columns='age', values='value', aggfunc='sum')
+    cancers_df.index.name = 't'
+    cancers_df.columns = [age_to_label[c] for c in cancers_df.columns]
+
+    # Genotype column rename: '16' → 'hpv16', '18' → 'hpv18' to match AgeResults output
+    _gt_rename = {'16': 'hpv16', '18': 'hpv18', 'hi5': 'hi5', 'ohr': 'ohr'}
+
+    # CIN genotype distribution (2015)
+    ct_cin = pd.read_csv('data/nigeria_cin_types.csv')
+    cin_df = ct_cin.pivot_table(index='year', columns='genotype', values='value')
+    cin_df.index.name = 't'
+    cin_df.rename(columns=_gt_rename, inplace=True)
+
+    # Cancer genotype distribution (2015)
+    ct_ca = pd.read_csv('data/nigeria_cancer_types.csv')
+    cancer_type_df = ct_ca.pivot_table(index='year', columns='genotype', values='value')
+    cancer_type_df.index.name = 't'
+    cancer_type_df.rename(columns=_gt_rename, inplace=True)
+
+    return edges, dict(
+        cancers=cancers_df,
+        cin_genotype_dist=cin_df,
+        cancerous_genotype_dist=cancer_type_df,
+    )
+
+
 def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
-    sim = make_sim()
-    datafiles = [
-        f'data/nigeria_cancer_cases.csv',
-        f'data/nigeria_cin_types.csv',
-        f'data/nigeria_cancer_types.csv',
-    ]
+    edges, data = _load_calib_data()
 
-    # Define the calibration parameters
-    genotype_pars = dict(
-        hi5=dict(
-            cancer_fn=dict(transform_prob=[1.5e-3, 0.5e-3, 2.5e-3, 2e-4]),
-            cin_fn=dict(k=[.15, .1, .25, 0.01]),
-            dur_cin=dict(par1=[4.5, 3.5, 5.5, 0.5], par2=[20, 16, 24, 0.5]),
-        ),
-        ohr=dict(
-            cancer_fn=dict(transform_prob=[1.5e-3, 0.5e-3, 2.5e-3, 2e-4]),
-            cin_fn=dict(k=[.15, .1, .25, 0.01]),
-            dur_cin=dict(par1=[4.5, 3.5, 5.5, 0.5], par2=[20, 16, 24, 0.5]),
-        ),
+    # Sim with AgeResults so default_eval_fn can compare against the data.
+    # Years: 2020 for cancers, 2015 for genotype distributions.
+    ar = hpv.AgeResults(result_args=sc.objdict(
+        cancers=sc.objdict(years=[2020], edges=edges),
+        cancerous_genotype_dist=sc.objdict(years=[2015], edges=edges),
+        cin_genotype_dist=sc.objdict(years=[2015], edges=edges),
+    ))
+    sim = make_sim(analyzers=[ar])
+
+    # v3 calib_pars: flat dotted-key paths, each a {low, high, guess} dict.
+    # beta dropped (v3 migration guide: not a useful lever).
+    # Network params (m_cross_layer, f_cross_layer, m_partners.c.par1,
+    # f_partners.c.par1) and sev_dist pruned: v3 build_sim only routes bare
+    # sim pars and '<genotype>.<...>' paths; network-layer pars have no
+    # supported routing in v3.
+    # dur_cin.par1/par2 pruned: v3 stores dur_cin as a ss.lognorm_ex
+    # distribution object (pars: mean/std), which does not support item
+    # assignment via build_sim's dict-walk. cancer_fn and cin_fn are plain
+    # dicts and route correctly.
+    calib_pars = {
+        'hi5.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
+        'hi5.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
+        'ohr.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
+        'ohr.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
+    }
+
+    calib = hpv.Calibration(
+        sim, calib_pars,
+        data=data,
+        label='nigeria_calib',
+        total_trials=n_trials, n_workers=n_workers,
+        storage=storage,
     )
-
-    calib_pars = dict(
-        beta=[0.2, 0.1, 0.34, 0.02],
-        m_cross_layer=[0.3, 0.1, 0.7, 0.05],
-        m_partners=dict(
-            c=dict(par1=[0.2, 0.1, 0.6, 0.02])
-        ),
-        f_cross_layer=[0.1, 0.05, 0.5, 0.05],
-        f_partners=dict(
-            c=dict(par1=[0.2, 0.1, 0.6, 0.02])
-        ),
-        sev_dist=dict(par1=[1, 0.5, 1.5, 0.01])
-    )
-
-    calib = hpv.Calibration(sim, calib_pars=calib_pars, genotype_pars=genotype_pars,
-                            name=f'nigeria_calib',
-                            datafiles=datafiles,
-                            total_trials=n_trials, n_workers=n_workers,
-                            storage=storage
-                            )
     calib.calibrate()
     filename = f'nigeria_calib{filestem}'
     if do_save:
         sc.saveobj(f'results/{filename}.obj', calib)
-
     print(f'Best pars are {calib.best_pars}')
-
     return sim, calib
 
 

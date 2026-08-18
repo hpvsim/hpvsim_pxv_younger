@@ -17,3 +17,14 @@ def test_analyzers_produce_expected_attrs():
     assert hasattr(afs, 'prop_active_f') and afs.prop_active_f.size > 0
     assert hasattr(afs, 'cohort_starts')
     assert hasattr(pm, 'df') and len(pm.df) > 0
+
+
+def test_run_calib_tiny_completes():
+    """4-trial calibration should complete without error and save an obj."""
+    import os, sciris as sc
+    from run_sims import run_calib
+    sim, calib = run_calib(n_trials=4, n_workers=1, do_save=True, filestem='_smoke')
+    assert os.path.exists('results/nigeria_calib_smoke.obj')
+    saved = sc.loadobj('results/nigeria_calib_smoke.obj')
+    assert saved.study is not None, 'calibration finished but Optuna study is missing'
+    os.remove('results/nigeria_calib_smoke.obj')

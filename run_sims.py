@@ -8,8 +8,10 @@ import sciris as sc
 import hpvsim as hpv
 import pandas as pd
 
-# Imports from this repository
-import utils as ut
+# Imports from this repository (lazy — utils.py is ported in a later task)
+import importlib as _il
+def _ut():
+    return _il.import_module('utils')
 
 # %% Settings and filepaths
 
@@ -28,49 +30,16 @@ do_save = True
 save_plots = True
 
 
-# %% v2.3 compatibility helpers
-def _to_annual_prob(p, dt):
-    """Convert per-timestep probability to annual (HPVsim v2.3+)."""
-    p = np.clip(p, 0, 1 - 1e-10)
-    return 1 - (1 - p) ** (1 / dt)
-
-
-def _layer_probs_to_annual(layer_probs, dt):
-    """Convert layer_probs dict from per-timestep to annual."""
-    out = {}
-    for lkey, lp in layer_probs.items():
-        lp_new = np.asarray(lp).copy().astype(float)
-        for row in [1, 2]:  # row 0 is age bins
-            lp_new[row, :] = _to_annual_prob(lp_new[row, :], dt)
-        out[lkey] = lp_new
-    return out
-
-
-def _convert_calib_pars_to_annual(calib_pars, dt):
-    """Convert any layer_probs / m_cross_layer / f_cross_layer in calib_pars to annual."""
-    if calib_pars is None:
-        return calib_pars
-    out = dict(calib_pars)
-    for key in ('m_cross_layer', 'f_cross_layer'):
-        if key in out and out[key] is not None:
-            out[key] = float(_to_annual_prob(out[key], dt))
-    if 'layer_probs' in out and out['layer_probs'] is not None:
-        out['layer_probs'] = _layer_probs_to_annual(out['layer_probs'], dt)
-    return out
-
-
 # %% Simulation creation functions
-def make_sim(location='nigeria', calib_pars=None, debug=0, interventions=None, analyzers=None, datafile=None, seed=1, end=2020):
-    """
-    Define parameters, analyzers, and interventions for the simulation
-    """
+def make_sim(location='nigeria', calib_pars=None, debug=0, interventions=None, analyzers=None, seed=1, end=2020):
+    """v3 Sim with SexualNetwork configured via country._network_pars."""
 
-    # Basic parameters
-    pars = sc.objdict(
+    # Basic parameters — passed to hpv.Sim via **pars expansion
+    pars = dict(
         n_agents=[20e3, 1e3][debug],
         dt=[0.25, 1.0][debug],
         start=[1960, 1980][debug],
-        end=end,
+        stop=end,
         genotypes=[16, 18, 'hi5', 'ohr'],
         location=location,
         ms_agent_ratio=100,
@@ -78,79 +47,69 @@ def make_sim(location='nigeria', calib_pars=None, debug=0, interventions=None, a
         rand_seed=seed,
     )
 
-    # Sexual behavior parameters
-    # Debut: derived by fitting to 2018 DHS
-    # Women:
-    #           Age:   15,   18,   20,   22,   25
-    #   Prop_active: 19.2, 57.3, 73.9, 85.5, 91.6
-    # Men:
-    #           Age:  15,   18,   20,   22,   25
-    #   Prop_active: 3.1, 14.5, 30.1, 51.9, 70.1
-    # For fitting, see https://www.researchsquare.com/article/rs-3074559/v1
-    pars.debut = dict(
-        f=dict(dist='lognormal', par1=16., par2=4),
-        m=dict(dist='lognormal', par1=18., par2=4),
+    # Network overrides — same raw values as v2 (debut, layer_probs,
+    # m_partners, f_partners). Passed to country._network_pars as an
+    # override dict; v3 handles annualization internally.
+    network_overrides = dict(
+        debut=dict(
+            f=dict(dist='lognormal', par1=16., par2=4),
+            m=dict(dist='lognormal', par1=18., par2=4),
+        ),
+        layer_probs=dict(
+            m=np.array([
+                [0, 5, 10,   15,    20,    25,    30,    35,    40,   45,   50,   55,  60,  65,    70,    75],
+                [0, 0,  0,  0.1,   0.1,  0.15,  0.15,  0.15,   0.2,  0.3,  0.4,  0.4, 0.2, 0.07, 0.035, 0.007],
+                [0, 0,  0,  0.1,   0.1,  0.15,  0.15,   0.2,   0.2,  0.4,  0.4,  0.4, 0.2,  0.1,  0.05,  0.01],
+            ]),
+            c=np.array([
+                [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],
+                [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.7, 0.7, 0.6, 0.2, 0.10, 0.02, 0.02, 0.02],
+                [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.6, 0.5, 0.2, 0.02, 0.02, 0.02, 0.02],
+            ]),
+        ),
+        m_partners=dict(
+            m=dict(dist='poisson1', par1=0.01),
+            c=dict(dist='poisson1', par1=0.2),
+        ),
+        f_partners=dict(
+            m=dict(dist='poisson1', par1=0.01),
+            c=dict(dist='poisson1', par1=0.2),
+        ),
     )
 
-    # Participation in marital and casual relationships
-    # Derived to fit 2018 DHS data
-    # For fitting, see https://www.researchsquare.com/article/rs-3074559/v1
-    pars.layer_probs = dict(
-        m=np.array([
-            # Share of people of each age who are married
-            [0, 5, 10,    15,     20,     25,     30,     35,     40,     45,   50,   55,   60,   65,    70,   75],
-            # [0, 0,  0,  0.1596, 0.4466, 0.5845, 0.6139, 0.6202, 0.6139, 0.5726, 0.35, 0.21, 0.14, 0.07, 0.035, 0.007],
-            [0, 0,  0,  0.1,     0.1,    0.15,    0.15,    0.15,   0.2,    0.3,  0.4,  0.4,  0.2, 0.07, 0.035, 0.007],
-            [0, 0,  0,  0.1,     0.1,    0.15,    0.15,    0.2,    0.2,    0.4,  0.4,  0.4,  0.2,  0.1,  0.05, 0.01 ],
-        ]),
-        c=np.array([
-            # Share of people of each age in casual partnerships
-            [0, 5,  10,  15,  20,  25,  30,   35,   40,   45,  50,  55,   60,   65,   70,   75],
-            [0,  0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4,  0.7,  0.7, 0.6, 0.2, 0.10, 0.02, 0.02, 0.02],
-            [0,  0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4,  0.5,  0.6, 0.5, 0.2, 0.02, 0.02, 0.02, 0.02]
-        ])
-    )
-
-    # HPVsim v2.3+ treats layer_probs and cross-layer probabilities as annual,
-    # but this project's values were calibrated as per-timestep.
-    pars.layer_probs = _layer_probs_to_annual(pars.layer_probs, pars.dt)
-
-    pars.m_partners = dict(
-        m=dict(dist='poisson1', par1=0.01),
-        c=dict(dist='poisson1', par1=0.2),
-    )
-    pars.f_partners = dict(
-        m=dict(dist='poisson1', par1=0.01),
-        c=dict(dist='poisson1', par1=0.2),
-    )
-
+    # Merge calibrated network pars over the defaults (calib_pars may
+    # override m_partners.c.par1, f_partners.c.par1, m_cross_layer,
+    # f_cross_layer, layer_probs). Non-network calib_pars flow to
+    # hpv.Sim(**pars) via the merge below.
     if calib_pars is not None:
-        calib_pars = _convert_calib_pars_to_annual(calib_pars, pars.dt)
+        for k in ('debut', 'layer_probs', 'm_partners', 'f_partners',
+                 'm_cross_layer', 'f_cross_layer'):
+            if k in calib_pars:
+                network_overrides[k] = calib_pars.pop(k)
+
+    net = hpv.SexualNetwork(**hpv.data.country._network_pars(location, pars=network_overrides))
+
+    if calib_pars:  # Non-network calib_pars (genotype_pars, sev_dist, etc.)
         pars = sc.mergedicts(pars, calib_pars)
 
     if analyzers is None:
         analyzers = []
 
-    sim = hpv.Sim(pars=pars, interventions=interventions, analyzers=analyzers, datafile=datafile)
-
+    sim = hpv.Sim(**pars, networks=[net], interventions=interventions, analyzers=analyzers)
     return sim
 
 
 # %% Simulation running functions
-def run_sim(calib_pars=None, analyzers=None, debug=debug, datafile=None, seed=1, verbose=.1, do_shrink=do_shrink, do_save=do_save, end=2020):
-    # Make sim
+def run_sim(calib_pars=None, analyzers=None, debug=debug, seed=1, verbose=.1, do_shrink=do_shrink, do_save=do_save, end=2020):
     sim = make_sim(
         debug=debug,
         seed=seed,
-        datafile=datafile,
         analyzers=analyzers,
         calib_pars=calib_pars,
-        end=end
+        end=end,
     )
     sim.label = f'Sim-{seed}'
-
-    # Run
-    sim['verbose'] = verbose
+    sim.pars.verbose = verbose  # v3 uses sim.pars not sim[...]
     sim.run()
     if do_shrink:
         sim.shrink()
@@ -223,7 +182,7 @@ def get_sb_from_sims(verbose=-1, calib_pars=None, debug=False):
 
     sim = run_sim(
         calib_pars=calib_pars,
-        analyzers=[ut.AFS(), ut.prop_married(), hpv.snapshot(timepoints=['2020'])],
+        analyzers=[_ut().AFS(), _ut().prop_married(), hpv.snapshot(timepoints=['2020'])],
         debug=debug,
         verbose=verbose,
         do_save=False,
@@ -370,7 +329,7 @@ if __name__ == '__main__':
 
     if 'plot_calib' in to_run:
         calib = plot_calib(save_pars=True, filestem='')
-        calib = ut.shrink_calib(calib, n_results=200)
+        calib = _ut().shrink_calib(calib, n_results=200)
         sc.saveobj(f'results/nigeria_calib_reduced.obj', calib)
 
     if 'run_parsets' in to_run:

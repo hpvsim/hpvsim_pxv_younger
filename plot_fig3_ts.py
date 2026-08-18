@@ -83,7 +83,7 @@ def plot_fig3(scens_df, outpath='figures/fig3_vx_scens.png'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--resfolder', default='results/v2.0.x_published')
+    parser.add_argument('--resfolder', default='results/v2.3.0_baseline')
     parser.add_argument('--outpath', default='figures/fig3_vx_scens.png')
     args = parser.parse_args()
 

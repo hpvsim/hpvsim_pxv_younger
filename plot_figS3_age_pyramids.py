@@ -106,7 +106,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--run-sim', action='store_true',
                         help='Run baseline sim with age_pyramid analyzer (VM-side)')
-    parser.add_argument('--resfolder', default='results/v2.0.x_published',
+    parser.add_argument('--resfolder', default='results/v2.3.0_baseline',
                         help='Dir with plot-ready CSVs (for plot mode only)')
     parser.add_argument('--outpath', default='figures/figS3_age_pyramids.png')
     parser.add_argument('--years', nargs='+', default=['2025', '2050', '2075', '2100'])

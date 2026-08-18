@@ -109,7 +109,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--run-sim', action='store_true',
                         help='Run calibration and save CSVs (heavy, VM-side)')
-    parser.add_argument('--resfolder', default='results/v2.0.x_published',
+    # NOTE: v2.3.0_baseline has no figS2 CSVs. This default becomes fully
+    # valid after the v3 freeze commit populates results/v3.0.0_baseline/.
+    parser.add_argument('--resfolder', default='results/v2.3.0_baseline',
                         help='Dir with plot-ready CSVs (for plot mode only)')
     parser.add_argument('--outpath', default='figures/figS2_calibration.png')
     parser.add_argument('--res-to-plot', type=int, default=100)

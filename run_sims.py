@@ -10,6 +10,7 @@ import sciris as sc
 import hpvsim as hpv
 import pandas as pd
 
+import starsim as ss
 import utils as ut
 
 # %% Settings and filepaths
@@ -46,43 +47,37 @@ def make_sim(location='nigeria', calib_pars=None, debug=0, interventions=None, a
         rand_seed=seed,
     )
 
-    # Network overrides — same raw values as v2 (debut, layer_probs,
-    # m_partners, f_partners). Passed to country._network_pars as an
-    # override dict; v3 handles annualization internally.
+    # Network overrides — v3 flat NetworkPars keys (no v2 nested dicts).
+    # debut_f/debut_m: ss.normal per NetworkPars convention (Nigeria values).
+    # layer_probs_marital/casual: (3, N) arrays (age-bin edges, f-probs, m-probs).
+    # m/f_partners_marital/casual: ss.poisson; +1 shift applied in network code.
     network_overrides = dict(
-        debut=dict(
-            f=dict(dist='lognormal', par1=16., par2=4),
-            m=dict(dist='lognormal', par1=18., par2=4),
-        ),
-        layer_probs=dict(
-            m=np.array([
-                [0, 5, 10,   15,    20,    25,    30,    35,    40,   45,   50,   55,  60,  65,    70,    75],
-                [0, 0,  0,  0.1,   0.1,  0.15,  0.15,  0.15,   0.2,  0.3,  0.4,  0.4, 0.2, 0.07, 0.035, 0.007],
-                [0, 0,  0,  0.1,   0.1,  0.15,  0.15,   0.2,   0.2,  0.4,  0.4,  0.4, 0.2,  0.1,  0.05,  0.01],
-            ]),
-            c=np.array([
-                [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],
-                [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.7, 0.7, 0.6, 0.2, 0.10, 0.02, 0.02, 0.02],
-                [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.6, 0.5, 0.2, 0.02, 0.02, 0.02, 0.02],
-            ]),
-        ),
-        m_partners=dict(
-            m=dict(dist='poisson1', par1=0.01),
-            c=dict(dist='poisson1', par1=0.2),
-        ),
-        f_partners=dict(
-            m=dict(dist='poisson1', par1=0.01),
-            c=dict(dist='poisson1', par1=0.2),
-        ),
+        debut_f=ss.normal(loc=16.0, scale=4.0),
+        debut_m=ss.normal(loc=18.0, scale=4.0),
+        layer_probs_marital=np.array([
+            [0, 5, 10,   15,    20,    25,    30,    35,    40,   45,   50,   55,  60,  65,    70,    75],
+            [0, 0,  0,  0.1,   0.1,  0.15,  0.15,  0.15,   0.2,  0.3,  0.4,  0.4, 0.2, 0.07, 0.035, 0.007],
+            [0, 0,  0,  0.1,   0.1,  0.15,  0.15,   0.2,   0.2,  0.4,  0.4,  0.4, 0.2,  0.1,  0.05,  0.01],
+        ]),
+        layer_probs_casual=np.array([
+            [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],
+            [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.7, 0.7, 0.6, 0.2, 0.10, 0.02, 0.02, 0.02],
+            [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.6, 0.5, 0.2, 0.02, 0.02, 0.02, 0.02],
+        ]),
+        m_partners_marital=ss.poisson(lam=0.01),
+        m_partners_casual=ss.poisson(lam=0.2),
+        f_partners_marital=ss.poisson(lam=0.01),
+        f_partners_casual=ss.poisson(lam=0.2),
     )
 
     # Merge calibrated network pars over the defaults (calib_pars may
-    # override m_partners.c.par1, f_partners.c.par1, m_cross_layer,
-    # f_cross_layer, layer_probs). Non-network calib_pars flow to
-    # hpv.Sim(**pars) via the merge below.
+    # override m_partners_casual, f_partners_casual, m_cross_layer,
+    # f_cross_layer). Non-network calib_pars flow to hpv.Sim(**pars).
     if calib_pars is not None:
-        for k in ('debut', 'layer_probs', 'm_partners', 'f_partners',
-                 'm_cross_layer', 'f_cross_layer'):
+        for k in ('debut_f', 'debut_m', 'layer_probs_marital', 'layer_probs_casual',
+                  'm_partners_marital', 'm_partners_casual',
+                  'f_partners_marital', 'f_partners_casual',
+                  'm_cross_layer', 'f_cross_layer'):
             if k in calib_pars:
                 network_overrides[k] = calib_pars.pop(k)
 
@@ -144,85 +139,38 @@ def _load_calib_data():
     return edges, dict(cancers=cancers_df)
 
 
-def _network_build_fn(sim, calib_pars, **kwargs):
-    """Custom build_fn that routes network priors through make_sim's network
-    builder, then delegates remaining (genotype) pars to hpv.calibration.build_sim.
-
-    make_sim already pops m_cross_layer, f_cross_layer, m_partners, f_partners
-    out of calib_pars and passes them into hpv.SexualNetwork via
-    _network_pars(location, pars=network_overrides). We reconstruct the nested
-    dict form that make_sim expects for m_partners / f_partners (full layer
-    dicts: both 'm' and 'c'), then call make_sim(calib_pars=network_overrides)
-    to get a properly wired sim, and finally apply genotype pars via build_sim.
-    """
-    calib_pars = dict(calib_pars)  # don't mutate caller's copy
-
-    def _val(v):
-        """Extract sampled scalar from Optuna spec dict if needed."""
-        return v['value'] if isinstance(v, dict) and 'value' in v else v
-
-    # Reconstruct nested network dict form for make_sim.
-    network_calib = {}
-    for key in ('m_cross_layer', 'f_cross_layer'):
-        if key in calib_pars:
-            network_calib[key] = _val(calib_pars.pop(key))
-    for dotted_key, nested_key in (('m_partners.c.par1', 'm_partners'),
-                                    ('f_partners.c.par1', 'f_partners')):
-        if dotted_key in calib_pars:
-            network_calib[nested_key] = dict(
-                m=dict(dist='poisson1', par1=0.01),
-                c=dict(dist='poisson1', par1=_val(calib_pars.pop(dotted_key))),
-            )
-
-    # Carry by_age (and any other user analyzers) from the deep-copied sim.
-    # Exclude HPVTotal — hpv.Sim.__init__ auto-adds it; passing a second copy
-    # would collide on sim.results.all_hpv.
-    from hpvsim.cross_genotype import HPVTotal
-    analyzers = [a for a in sim.pars.get('analyzers', [])
-                 if not isinstance(a, HPVTotal)]
-    rebuilt = make_sim(calib_pars=network_calib, analyzers=analyzers)
-
-    # Apply remaining genotype pars (e.g. hi5.cancer_fn.transform_prob)
-    # via the default router, which handles dotted '<genotype>.<...>' paths.
-    return hpv.calibration.build_sim(rebuilt, calib_pars, **kwargs)
-
-
 def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
     edges, data = _load_calib_data()
 
     # Sim with by_age analyzer so default_eval_fn can compare against the data.
-    # cancers target year: 2020. cin_genotype_dist / cancerous_genotype_dist
-    # dropped — hpv.Calibration._validate_data rejects keys not in by_age's
-    # known set (removed in rc3.0.1); those dists are emitted post-hoc in Task 7.
     ar = hpv.by_age('cancers', years=[2020], edges=edges)
     sim = make_sim(analyzers=[ar])
 
-    # v3 calib_pars: flat dotted-key paths, each a {low, high, guess} dict.
-    # beta dropped (v3 migration guide: not a useful lever).
-    # Network priors routed via _network_build_fn. sev_dist absent from v3.
-    # dur_cin.mean / dur_cin.std restored: v3 lognorm_ex uses mean/std pars
-    # (not par1/par2); route_pars calls Dist.set(mean=...) natively.
-    calib_pars = {
-        # Network priors (routed via _network_build_fn)
-        'm_cross_layer':   dict(low=0.1,    high=0.7,   guess=0.3),
-        'f_cross_layer':   dict(low=0.05,   high=0.5,   guess=0.1),
-        'm_partners.c.par1': dict(low=0.1,  high=0.6,   guess=0.2),
-        'f_partners.c.par1': dict(low=0.1,  high=0.6,   guess=0.2),
-        # Genotype-transition priors (routed via hpv.calibration.build_sim)
-        'hi5.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
-        'hi5.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
-        'hi5.dur_cin.mean':             dict(low=3.5,    high=5.5,    guess=4.5),
-        'hi5.dur_cin.std':              dict(low=16.0,   high=24.0,   guess=20.0),
-        'ohr.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
-        'ohr.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
-        'ohr.dur_cin.mean':             dict(low=3.5,    high=5.5,    guess=4.5),
-        'ohr.dur_cin.std':              dict(low=16.0,   high=24.0,   guess=20.0),
-    }
+    # v3 calib_pars: nested dict form, list leaves [guess, low, high].
+    # hpv.Calibration._prepare_calib_pars flattens to dotted keys for Optuna;
+    # default route_pars handles the routing.
+    calib_pars = dict(
+        m_cross_layer=[0.3,  0.1, 0.7],
+        f_cross_layer=[0.1,  0.05, 0.5],
+        network=dict(
+            m_partners_casual=dict(lam=[0.2, 0.1, 0.6]),
+            f_partners_casual=dict(lam=[0.2, 0.1, 0.6]),
+        ),
+        hi5=dict(
+            cancer_fn=dict(transform_prob=[1.5e-3, 0.5e-3, 2.5e-3]),
+            cin_fn=dict(k=[0.15, 0.1, 0.25]),
+            dur_cin=dict(mean=[4.5, 3.5, 5.5], std=[20.0, 16.0, 24.0]),
+        ),
+        ohr=dict(
+            cancer_fn=dict(transform_prob=[1.5e-3, 0.5e-3, 2.5e-3]),
+            cin_fn=dict(k=[0.15, 0.1, 0.25]),
+            dur_cin=dict(mean=[4.5, 3.5, 5.5], std=[20.0, 16.0, 24.0]),
+        ),
+    )
 
     calib = hpv.Calibration(
         sim, calib_pars,
-        build_fn=_network_build_fn,
         data=data,
         label='nigeria_calib',
         total_trials=n_trials, n_workers=n_workers,

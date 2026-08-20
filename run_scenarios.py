@@ -20,6 +20,7 @@ os.environ.update(
 import numpy as np
 import sciris as sc
 import hpvsim as hpv
+import starsim as ss
 
 # Imports from this repository
 import run_sims as rs
@@ -39,143 +40,180 @@ efficacy_arr = efficacy_dict[efficacy_scen]
 # %% Create interventions
 
 def make_st(screen_coverage=0.15, treat_coverage=0.7, start_year=2020):
-    """ Make screening & treatment intervention """
+    """v3 screening -> triage-assignment -> treat cascade. Registration order
+    matters: screening must precede any treat, otherwise the first-step
+    outcomes are empty when the treat sees them.
 
-    age_range = [30, 50]
-    len_age_range = (age_range[1]-age_range[0])/2
-    model_annual_screen_prob = 1 - (1 - screen_coverage)**(1/len_age_range)
+    Note: product module names are prefixed with 'prod_' to avoid starsim
+    "Module already added" conflicts when the intervention and its product share
+    the same name (e.g. intervention 'ablation' vs tx product 'ablation').
+    """
+    # Products — rename module names to avoid conflicts with same-named interventions
+    abl_prod = hpv.products.tx(name='ablation')
+    abl_prod.name = 'prod_ablation'
+    exc_prod = hpv.products.tx(name='excision')
+    exc_prod.name = 'prod_excision'
+    rad_prod = hpv.radiation()
+    rad_prod.name = 'prod_radiation'
 
-    screen_eligible = lambda sim: np.isnan(sim.people.date_screened) | \
-                                  (sim.t > (sim.people.date_screened + 5 / sim['dt']))
     screening = hpv.routine_screening(
-        prob=model_annual_screen_prob,
-        eligibility=screen_eligible,
+        name='screening',
+        product='hpv', prob=screen_coverage,
+        age_range=[30, 50], sex='f',
         start_year=start_year,
-        product='hpv',
-        age_range=age_range,
-        label='screening'
     )
-
-    # Assign treatment
-    screen_positive = lambda sim: sim.get_intervention('screening').outcomes['positive']
     assign_treatment = hpv.routine_triage(
+        name='tx assigner',
+        product='tx_assigner', prob=1.0,
+        eligibility=lambda s: s.interventions['screening'].outcomes['positive'],
         start_year=start_year,
-        prob=1.0,
-        annual_prob=False,
-        product='tx_assigner',
-        eligibility=screen_positive,
-        label='tx assigner'
     )
-
-    ablation_eligible = lambda sim: sim.get_intervention('tx assigner').outcomes['ablation']
-    # v2.3: treat_num doesn't accept annual_prob (only screening/triage/vx do)
     ablation = hpv.treat_num(
-        prob=treat_coverage,
-        product='ablation',
-        eligibility=ablation_eligible,
-        label='ablation'
+        name='ablation',
+        product=abl_prod, prob=treat_coverage,
+        eligibility=lambda s: s.interventions['tx assigner'].outcomes['ablation'],
     )
-
-    excision_eligible = lambda sim: list(set(sim.get_intervention('tx assigner').outcomes['excision'].tolist() +
-                                             sim.get_intervention('ablation').outcomes['unsuccessful'].tolist()))
     excision = hpv.treat_num(
-        prob=treat_coverage,
-        product='excision',
-        eligibility=excision_eligible,
-        label='excision'
+        name='excision',
+        product=exc_prod, prob=treat_coverage,
+        eligibility=lambda s: ss.uids(np.union1d(
+            s.interventions['tx assigner'].outcomes['excision'],
+            s.interventions['ablation'].outcomes['unsuccessful'],
+        )),
     )
-
-    radiation_eligible = lambda sim: sim.get_intervention('tx assigner').outcomes['radiation']
     radiation = hpv.treat_num(
-        prob=treat_coverage/4,  # assume an additional dropoff in CaTx coverage
-        product=hpv.radiation(),
-        eligibility=radiation_eligible,
-        label='radiation'
+        name='radiation',
+        product=rad_prod, prob=treat_coverage,
+        eligibility=lambda s: s.interventions['tx assigner'].outcomes['radiation'],
     )
-
-    st_intvs = [screening, assign_treatment, ablation, excision, radiation]
-
-    return st_intvs
+    return [screening, assign_treatment, ablation, excision, radiation]
 
 
 def make_vx_scenarios(coverage_arr, efficacy_arr, product='nonavalent', start_year=2025):
+    """Build vaccine interventions for adolescent + infant scenarios.
+
+    Returns a flat list of interventions: the adolescent routine/catchup vx
+    (using coverage_arr[0]) plus infant vx (using efficacy_arr[0]).  For the
+    full multi-scenario sweep used in make_sims / run_sims, the scenario dict
+    is built inline inside make_sims.
+
+    Note: each hpv.vx product instance must have a unique module name to avoid
+    starsim "Module already added" errors when multiple products are in the same sim.
+    """
+    coverage_arr = np.atleast_1d(coverage_arr)
+    efficacy_arr = np.atleast_1d(efficacy_arr)
 
     age_range = (9, 14)
     catchup_age = (age_range[0]+1, age_range[1])
     routine_age = (age_range[0], age_range[0]+1)
-    prod = hpv.default_vx(prod_name=product)
-    # v2.3 vx requires scalar imm_init (sterilizing probability); was
-    # dict(dist='beta_mean', par1=0.95, par2=0.025) — par1 is the mean.
-    prod.imm_init = 0.95
-    eligibility = lambda sim: (sim.people.doses == 0)
 
-    vx_scenarios = dict()
-
-    # Baseline
-    vx_scenarios['Baseline'] = []
-
-    # Construct the adolescent only scenarios
-    for cov_val in coverage_arr:
-        label = f'Adolescent: {np.round(cov_val, decimals=2)} coverage'
-        routine_vx = hpv.routine_vx(
+    # Adolescent routine + catchup (first coverage value)
+    cov_val = float(coverage_arr[0])
+    adol_prod = hpv.vx(name=product, sterilizing_p=0.95)
+    adol_prod.name = 'vx_adol'
+    intvs = [
+        hpv.routine_vx(
+            name='Routine vx',
             prob=cov_val,
             start_year=start_year,
-            product=prod,
+            product=adol_prod,
             age_range=routine_age,
-            eligibility=eligibility,
-            label='Routine vx'
-        )
-
-        catchup_vx = hpv.campaign_vx(
+        ),
+        hpv.campaign_vx(
+            name='Catchup vx',
             prob=cov_val,
             years=start_year,
-            product=prod,
+            product=adol_prod,
             age_range=catchup_age,
-            eligibility=eligibility,
-            label='Catchup vx'
-        )
+        ),
+    ]
 
-        vx_scenarios[label] = [routine_vx, catchup_vx]
-
-    # Construct the infant scenarios
-    for eff_val in efficacy_arr:
-
-        cov_val = eff_val*0.9/0.95
-        label = f'Infants: {np.round(eff_val, decimals=3)} efficacy'
-
-        routine_vx = hpv.routine_vx(
-            prob=cov_val,
-            years=[start_year, start_year+9],
-            product=prod,
-            age_range=routine_age,
-            eligibility=eligibility,
-            label='Routine vx'
-        )
-
-        catchup_vx = hpv.campaign_vx(
-            prob=cov_val,  #[0.9, 0.7],
-            years=start_year,  #[2025, 2030],
-            product=prod,
-            age_range=catchup_age,
-            eligibility=eligibility,
-            label='Catchup vx'
-        )
-
-        infant_prod = hpv.default_vx(prod_name=product)
-        # v2.3 vx requires scalar imm_init (sterilizing probability); was
-        # dict(dist='beta_mean', par1=eff_val, par2=0.025) — par1 is the mean.
-        infant_prod.imm_init = eff_val
-        infant_vx = hpv.routine_vx(
+    # Infant vx (first efficacy value)
+    eff_val = float(efficacy_arr[0])
+    infant_prod = hpv.vx(name=product, sterilizing_p=eff_val)
+    infant_prod.name = 'vx_infant'
+    intvs.append(
+        hpv.routine_vx(
+            name='Infant vx',
             prob=0.9,
             start_year=start_year,
             product=infant_prod,
             age_range=(0, 1),
-            eligibility=eligibility,
-            label='Infant vx'
         )
+    )
 
-        these_intvs = [infant_vx, routine_vx, catchup_vx]  #[routine_vx, catchup_vx, infant_vx]
-        vx_scenarios[label] = these_intvs
+    return intvs
+
+
+def _make_scenario_dict(coverage_arr, efficacy_arr, product='nonavalent', start_year=2025):
+    """Build the full scenario dict for make_sims: {name -> [interventions]}.
+
+    Each scenario's interventions list gets fresh hpv.vx product instances with
+    unique module names so that multiple scenarios can coexist in the same sim
+    (or so each per-scenario sim is self-contained).
+    """
+    coverage_arr = np.atleast_1d(coverage_arr)
+    efficacy_arr = np.atleast_1d(efficacy_arr)
+
+    age_range = (9, 14)
+    catchup_age = (age_range[0]+1, age_range[1])
+    routine_age = (age_range[0], age_range[0]+1)
+
+    vx_scenarios = dict()
+    vx_scenarios['Baseline'] = []
+
+    # Adolescent-only scenarios
+    for cov_val in coverage_arr:
+        label = f'Adolescent: {np.round(cov_val, decimals=2)} coverage'
+        prod = hpv.vx(name=product, sterilizing_p=0.95)
+        prod.name = 'vx_adol'
+        routine_vx = hpv.routine_vx(
+            name='Routine vx',
+            prob=cov_val,
+            start_year=start_year,
+            product=prod,
+            age_range=routine_age,
+        )
+        catchup_vx = hpv.campaign_vx(
+            name='Catchup vx',
+            prob=cov_val,
+            years=start_year,
+            product=prod,
+            age_range=catchup_age,
+        )
+        vx_scenarios[label] = [routine_vx, catchup_vx]
+
+    # Infant scenarios
+    for eff_val in efficacy_arr:
+        cov_val = eff_val * 0.9 / 0.95
+        label = f'Infants: {np.round(eff_val, decimals=3)} efficacy'
+
+        adol_prod = hpv.vx(name=product, sterilizing_p=0.95)
+        adol_prod.name = 'vx_adol'
+        routine_vx = hpv.routine_vx(
+            name='Routine vx',
+            prob=cov_val,
+            years=[start_year, start_year+9],
+            product=adol_prod,
+            age_range=routine_age,
+        )
+        catchup_vx = hpv.campaign_vx(
+            name='Catchup vx',
+            prob=cov_val,
+            years=start_year,
+            product=adol_prod,
+            age_range=catchup_age,
+        )
+        infant_prod = hpv.vx(name=product, sterilizing_p=eff_val)
+        infant_prod.name = 'vx_infant'
+        infant_vx = hpv.routine_vx(
+            name='Infant vx',
+            prob=0.9,
+            start_year=start_year,
+            product=infant_prod,
+            age_range=(0, 1),
+        )
+        vx_scenarios[label] = [infant_vx, routine_vx, catchup_vx]
 
     return vx_scenarios
 
@@ -185,18 +223,18 @@ def make_sims(calib_pars=None, vx_scenarios=None):
 
     st_intv = make_st()
 
-    all_msims = sc.autolist()
+    if vx_scenarios is None:
+        vx_scenarios = _make_scenario_dict(coverage_arr, efficacy_arr)
+
+    all_sims = sc.autolist()
     for name, vx_intv in vx_scenarios.items():
-        sims = sc.autolist()
         for seed in range(n_seeds):
             interventions = vx_intv + st_intv
             sim = rs.make_sim(calib_pars=calib_pars, debug=debug, interventions=interventions, end=2100, seed=seed)
             sim.label = name
-            sims += sim
-        all_msims += hpv.MultiSim(sims)
+            all_sims += sim
 
-    msim = hpv.MultiSim.merge(all_msims, base=False)
-
+    msim = ss.MultiSim(all_sims)
     return msim
 
 
@@ -218,7 +256,7 @@ if __name__ == '__main__':
     # Run scenarios (usually on VMs, runs n_seeds in parallel over M scenarios)
     if do_run:
         calib_pars = sc.loadobj('results/nigeria_pars.obj')
-        vx_scenarios = make_vx_scenarios(coverage_arr, efficacy_arr)
+        vx_scenarios = _make_scenario_dict(coverage_arr, efficacy_arr)
         msim = run_sims(calib_pars=calib_pars, vx_scenarios=vx_scenarios)
 
         if do_save: msim.save('results/vs.msim')
@@ -227,18 +265,20 @@ if __name__ == '__main__':
 
             metrics = ['year', 'asr_cancer_incidence', 'n_precin_by_age', 'n_females_alive_by_age', 'cancers', 'cancer_deaths']
 
-            # Process results
-            vx_scenarios = make_vx_scenarios(coverage_arr, efficacy_arr)
+            # Process results: split by scenario (n_seeds sims per scenario)
             scen_labels = list(vx_scenarios.keys())
-            mlist = msim.split(chunks=len(scen_labels))
+            n_scens = len(scen_labels)
+            n_per_scen = n_seeds
 
             msim_dict = sc.objdict()
             for si, scen_label in enumerate(scen_labels):
-                reduced_sim = mlist[si].reduce(output=True)
+                scen_sims = msim.sims[si * n_per_scen : (si + 1) * n_per_scen]
+                scen_msim = ss.MultiSim(scen_sims)
+                reduced_sim = scen_msim.reduce(output=True)
                 mres = sc.objdict({metric: reduced_sim.results[metric] for metric in metrics})
-                for ii, intv in enumerate(reduced_sim['interventions']):
-                    intv_label = intv.label
-                    mres[intv_label] = reduced_sim['interventions'][ii].n_products_used
+                for intv in reduced_sim.interventions.values():
+                    if hasattr(intv, 'n_products_used'):
+                        mres[intv.name] = intv.n_products_used
 
                 msim_dict[scen_label] = mres
 

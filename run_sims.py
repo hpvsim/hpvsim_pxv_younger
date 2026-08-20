@@ -121,7 +121,13 @@ def run_sim(calib_pars=None, analyzers=None, debug=debug, seed=1, verbose=.1, do
 
 
 def _load_calib_data():
-    """Load the three Nigeria calibration CSVs as t-indexed DataFrames for hpv.Calibration data=."""
+    """Load Nigeria cancer-cases CSV as a t-indexed DataFrame for hpv.Calibration data=.
+
+    cin_genotype_dist and cancerous_genotype_dist are no longer by_age outputs
+    (removed in rc3.0.1); hpv.Calibration._validate_data rejects unknown keys.
+    Those two targets are dropped from the calibration objective; Task 7 will
+    emit them post-hoc via hpv.results_by_genotype as figS2 diagnostics.
+    """
     # Age bin edges matching the cancer-cases data (ages 0, 15, 20, ..., 85)
     edges = np.array([0, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 100],
                      dtype=float)
@@ -129,32 +135,13 @@ def _load_calib_data():
     labels.append(f'{int(edges[-2])}+')
     age_to_label = {int(edges[i]): labels[i] for i in range(len(labels))}
 
-    # Cancer cases by age (2020) — columns match AgeResults age-bin labels
+    # Cancer cases by age (2020) — columns match by_age age-bin labels
     cc = pd.read_csv('data/nigeria_cancer_cases.csv')
     cancers_df = cc.pivot_table(index='year', columns='age', values='value', aggfunc='sum')
     cancers_df.index.name = 't'
     cancers_df.columns = [age_to_label[c] for c in cancers_df.columns]
 
-    # Genotype column rename: '16' → 'hpv16', '18' → 'hpv18' to match AgeResults output
-    _gt_rename = {'16': 'hpv16', '18': 'hpv18', 'hi5': 'hi5', 'ohr': 'ohr'}
-
-    # CIN genotype distribution (2015)
-    ct_cin = pd.read_csv('data/nigeria_cin_types.csv')
-    cin_df = ct_cin.pivot_table(index='year', columns='genotype', values='value')
-    cin_df.index.name = 't'
-    cin_df.rename(columns=_gt_rename, inplace=True)
-
-    # Cancer genotype distribution (2015)
-    ct_ca = pd.read_csv('data/nigeria_cancer_types.csv')
-    cancer_type_df = ct_ca.pivot_table(index='year', columns='genotype', values='value')
-    cancer_type_df.index.name = 't'
-    cancer_type_df.rename(columns=_gt_rename, inplace=True)
-
-    return edges, dict(
-        cancers=cancers_df,
-        cin_genotype_dist=cin_df,
-        cancerous_genotype_dist=cancer_type_df,
-    )
+    return edges, dict(cancers=cancers_df)
 
 
 def _network_build_fn(sim, calib_pars, **kwargs):
@@ -187,7 +174,7 @@ def _network_build_fn(sim, calib_pars, **kwargs):
                 c=dict(dist='poisson1', par1=_val(calib_pars.pop(dotted_key))),
             )
 
-    # Carry AgeResults (and any other user analyzers) from the deep-copied sim.
+    # Carry by_age (and any other user analyzers) from the deep-copied sim.
     # Exclude HPVTotal — hpv.Sim.__init__ auto-adds it; passing a second copy
     # would collide on sim.results.all_hpv.
     from hpvsim.cross_genotype import HPVTotal
@@ -204,22 +191,18 @@ def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
 
     edges, data = _load_calib_data()
 
-    # Sim with AgeResults so default_eval_fn can compare against the data.
-    # Years: 2020 for cancers, 2015 for genotype distributions.
-    ar = hpv.AgeResults(result_args=sc.objdict(
-        cancers=sc.objdict(years=[2020], edges=edges),
-        cancerous_genotype_dist=sc.objdict(years=[2015], edges=edges),
-        cin_genotype_dist=sc.objdict(years=[2015], edges=edges),
-    ))
+    # Sim with by_age analyzer so default_eval_fn can compare against the data.
+    # cancers target year: 2020. cin_genotype_dist / cancerous_genotype_dist
+    # dropped — hpv.Calibration._validate_data rejects keys not in by_age's
+    # known set (removed in rc3.0.1); those dists are emitted post-hoc in Task 7.
+    ar = hpv.by_age('cancers', years=[2020], edges=edges)
     sim = make_sim(analyzers=[ar])
 
     # v3 calib_pars: flat dotted-key paths, each a {low, high, guess} dict.
     # beta dropped (v3 migration guide: not a useful lever).
-    # Network priors restored via _network_build_fn (custom build_fn that
-    # reconstructs nested make_sim form before calling hpv.calibration.build_sim
-    # for genotype pars). sev_dist confirmed absent from v3 sim.pars (correctly
-    # pruned). dur_cin.par1/par2 pruned: v3 stores dur_cin as a ss.lognorm_ex
-    # distribution object (not dict-subscriptable).
+    # Network priors routed via _network_build_fn. sev_dist absent from v3.
+    # dur_cin.mean / dur_cin.std restored: v3 lognorm_ex uses mean/std pars
+    # (not par1/par2); route_pars calls Dist.set(mean=...) natively.
     calib_pars = {
         # Network priors (routed via _network_build_fn)
         'm_cross_layer':   dict(low=0.1,    high=0.7,   guess=0.3),
@@ -229,8 +212,12 @@ def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):
         # Genotype-transition priors (routed via hpv.calibration.build_sim)
         'hi5.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
         'hi5.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
+        'hi5.dur_cin.mean':             dict(low=3.5,    high=5.5,    guess=4.5),
+        'hi5.dur_cin.std':              dict(low=16.0,   high=24.0,   guess=20.0),
         'ohr.cancer_fn.transform_prob': dict(low=0.5e-3, high=2.5e-3, guess=1.5e-3),
         'ohr.cin_fn.k':                 dict(low=0.1,    high=0.25,   guess=0.15),
+        'ohr.dur_cin.mean':             dict(low=3.5,    high=5.5,    guess=4.5),
+        'ohr.dur_cin.std':              dict(low=16.0,   high=24.0,   guess=20.0),
     }
 
     calib = hpv.Calibration(

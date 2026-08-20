@@ -130,13 +130,15 @@ def _load_calib_data():
     labels.append(f'{int(edges[-2])}+')
     age_to_label = {int(edges[i]): labels[i] for i in range(len(labels))}
 
-    # Cancer cases by age (2020) — columns match by_age age-bin labels
+    # Cancer cases by age (2020).
+    # v3 hpv.Calibration._validate_data requires scoped column names:
+    # 'all_hpv.<result>.<bin>' for age-stratified pooled targets.
     cc = pd.read_csv('data/nigeria_cancer_cases.csv')
     cancers_df = cc.pivot_table(index='year', columns='age', values='value', aggfunc='sum')
     cancers_df.index.name = 't'
-    cancers_df.columns = [age_to_label[c] for c in cancers_df.columns]
+    cancers_df.columns = [f'all_hpv.cancers.{age_to_label[c]}' for c in cancers_df.columns]
 
-    return edges, dict(cancers=cancers_df)
+    return edges, cancers_df
 
 
 def run_calib(n_trials=None, n_workers=None, do_save=True, filestem=''):

@@ -70,26 +70,19 @@ def make_sim(location='nigeria', calib_pars=None, debug=0, interventions=None, a
         f_partners_casual=ss.poisson(lam=0.2),
     )
 
-    # Merge calibrated network pars over the defaults (calib_pars may
-    # override m_partners_casual, f_partners_casual, m_cross_layer,
-    # f_cross_layer). Non-network calib_pars flow to hpv.Sim(**pars).
-    if calib_pars is not None:
-        for k in ('debut_f', 'debut_m', 'layer_probs_marital', 'layer_probs_casual',
-                  'm_partners_marital', 'm_partners_casual',
-                  'f_partners_marital', 'f_partners_casual',
-                  'm_cross_layer', 'f_cross_layer'):
-            if k in calib_pars:
-                network_overrides[k] = calib_pars.pop(k)
-
     net = hpv.SexualNetwork(**hpv.data.country._network_pars(location, pars=network_overrides))
-
-    if calib_pars:  # Non-network calib_pars (genotype_pars, sev_dist, etc.)
-        pars = sc.mergedicts(pars, calib_pars)
 
     if analyzers is None:
         analyzers = []
 
     sim = hpv.Sim(**pars, networks=[net], interventions=interventions, analyzers=analyzers)
+
+    # Apply calibrated pars via hpv.route_pars — handles flat dotted keys from
+    # calib.best_pars (e.g. 'hi5.cancer_fn.transform_prob', 'network.m_partners_casual.lam',
+    # 'm_cross_layer') and routes each to its destination sub-object.
+    if calib_pars:
+        hpv.route_pars(sim, calib_pars)
+
     return sim
 
 

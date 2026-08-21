@@ -365,16 +365,55 @@ def get_sb_from_sims(pars=None, debug=False, verbose=-1):
     alive_uid[auids] = True  # auids are already the alive set
 
     net = sim.networks.sexualnetwork
-    mask = net.edges_for_layer('m')
-    p1 = np.asarray(net.edges.p1)[mask]
-    p2 = np.asarray(net.edges.p2)[mask]
-    # Determine which end is male; compute (age_male - age_female)
-    age_diffs = np.where(female_uid[p1], age_uid[p2] - age_uid[p1], age_uid[p1] - age_uid[p2])
-    from scipy.stats import gaussian_kde
-    kde = gaussian_kde(age_diffs)
-    x = np.linspace(-15, 35, 300)
-    agediff_df = pd.DataFrame({'x': x, 'density': kde(x)})
-    agediff_df.to_csv('results/age_diffs_kde.csv', index=False)
+    # Age mixing heatmap — all active pairs (marital + casual), row-normalized
+    # P(male age bin | female age bin). Bin from 15 to 70 in 5-year bands.
+    all_p1 = np.asarray(net.edges.p1)
+    all_p2 = np.asarray(net.edges.p2)
+    is_p1_female = female_uid[all_p1]
+    f_ages = np.where(is_p1_female, age_uid[all_p1], age_uid[all_p2])
+    m_ages = np.where(is_p1_female, age_uid[all_p2], age_uid[all_p1])
+    mix_edges = np.arange(15, 71, 5)
+    h, _, _ = np.histogram2d(f_ages, m_ages, bins=[mix_edges, mix_edges])
+    row_sums = h.sum(axis=1, keepdims=True)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        h_prob = np.where(row_sums > 0, h / row_sums, 0.0)
+    n_bins = len(mix_edges) - 1
+    mixing_df = pd.DataFrame({
+        'f_bin_lo': np.repeat(mix_edges[:-1], n_bins),
+        'm_bin_lo': np.tile(mix_edges[:-1], n_bins),
+        'count': h.flatten(),
+        'prob': h_prob.flatten(),
+    })
+    mixing_df.to_csv('results/age_mixing_hist.csv', index=False)
+
+    # Partnership status by age bin × sex: % of alive level0 agents with >=1
+    # partner in each layer at end-of-sim. Matches kaz figS1 panel C.
+    layer_id = np.asarray(net.edges.layer_id)
+    m_edges = layer_id == net._layer_idx['m']
+    c_edges = layer_id == net._layer_idx['c']
+    has_m_uid = np.zeros(n_uids, dtype=bool)
+    has_m_uid[np.asarray(net.edges.p1)[m_edges]] = True
+    has_m_uid[np.asarray(net.edges.p2)[m_edges]] = True
+    has_c_uid = np.zeros(n_uids, dtype=bool)
+    has_c_uid[np.asarray(net.edges.p1)[c_edges]] = True
+    has_c_uid[np.asarray(net.edges.p2)[c_edges]] = True
+
+    status_edges = np.array([15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 150])
+    status_rows = []
+    for sex_mask, sex_label in ((female_uid & alive_uid & level0_uid, 'f'),
+                                 (~female_uid & alive_uid & level0_uid, 'm')):
+        for i in range(len(status_edges) - 1):
+            lo, hi = status_edges[i], status_edges[i + 1]
+            in_bin = sex_mask & (age_uid >= lo) & (age_uid < hi)
+            denom = int(in_bin.sum())
+            for layer_lbl, mask in (('marital', has_m_uid), ('casual', has_c_uid)):
+                num = int((in_bin & mask).sum())
+                status_rows.append(dict(
+                    sex=sex_label, age_bin_lo=int(lo), layer=layer_lbl,
+                    count=num, denom=denom,
+                    share=(num / denom) if denom > 0 else 0.0,
+                ))
+    pd.DataFrame(status_rows).to_csv('results/partnership_status.csv', index=False)
 
     # Casual partner counts by age bin — count casual-layer edges per uid.
     cmask = net.edges_for_layer('c')
@@ -413,7 +452,7 @@ def get_sb_from_sims(pars=None, debug=False, verbose=-1):
     casual_df = pd.DataFrame.from_dict(datadict)
     casual_df.to_csv(f'results/model_casual.csv', index=False)
 
-    return sim, afs_df, pm_df, agediff_df, casual_df
+    return sim, afs_df, pm_df, mixing_df, casual_df
 
 
 # %% Run as a script

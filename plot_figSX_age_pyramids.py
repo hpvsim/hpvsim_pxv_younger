@@ -2,8 +2,8 @@
 Plot Nigeria age pyramids.
 
 Two modes:
-  python plot_figS3_age_pyramids.py --run-sim   # run sim + save pyramid CSVs (VM)
-  python plot_figS3_age_pyramids.py             # plot from saved CSVs (local)
+  python plot_figSX_age_pyramids.py --run-sim   # run sim + save pyramid CSVs (VM)
+  python plot_figSX_age_pyramids.py             # plot from saved CSVs (local)
 """
 import argparse
 
@@ -23,25 +23,28 @@ AGE_LABELS = [
 ]
 
 
-def save_figS3_data(sim, resfolder='results',
+def save_figSX_data(sim, resfolder='results',
                     years=('2025', '2050', '2075', '2100')):
-    a = sim.get_analyzer('age_pyramid')
+    a = sim.analyzers['age_pyramid']
+    # v3: a.age_pyramids[i] is a (n_bins, 2) array — col 0 = female, col 1 = male.
+    # a.bins holds the bin lower edges.
     model_rows = []
     for yi, yr in enumerate(years):
-        p = sc.odict(a.age_pyramids)[yi]
-        for bin_val, m_val, f_val in zip(p['bins'], p['m'], p['f']):
-            model_rows.append({'year': yr, 'bin': int(bin_val),
+        p = a.age_pyramids[yi]
+        for bin_val, f_val, m_val in zip(a.bins, p[:, 0], p[:, 1]):
+            model_rows.append({'year': int(yr), 'bin': int(bin_val),
                                'm': int(m_val), 'f': int(f_val)})
-    pd.DataFrame(model_rows).to_csv(f'{resfolder}/figS3_model.csv', index=False)
+    pd.DataFrame(model_rows).to_csv(f'{resfolder}/figSX_model.csv', index=False)
 
-    data = a.data.copy()
-    data.columns = data.columns.str[0].str.lower()
-    data = data[data['y'].isin([float(y) for y in years])]
-    data.to_csv(f'{resfolder}/figS3_data.csv', index=False)
+    if a.data is not None:
+        data = a.data.copy()
+        data.columns = data.columns.str[0].str.lower()
+        data = data[data['y'].isin([float(y) for y in years])]
+        data.to_csv(f'{resfolder}/figSX_data.csv', index=False)
 
 
 def plot_pops(years, percentages=True, resfolder='results',
-              outpath='figures/figS3_age_pyramids.png'):
+              outpath='figures/figSX_age_pyramids.png'):
     n_years = len(years)
     n_rows, n_cols = sc.get_rows_cols(n_years)
     ut.set_font(size=14)
@@ -52,8 +55,8 @@ def plot_pops(years, percentages=True, resfolder='results',
     f_color = '#ee7989'
     xlabel = 'Share of population by sex' if percentages else 'Population by sex'
 
-    model_df = pd.read_csv(f'{resfolder}/figS3_model.csv')
-    data_df = pd.read_csv(f'{resfolder}/figS3_data.csv')
+    model_df = pd.read_csv(f'{resfolder}/figSX_model.csv')
+    data_df = pd.read_csv(f'{resfolder}/figSX_data.csv')
     bins = sorted(model_df['bin'].unique())
     labels = list(reversed(AGE_LABELS))[:len(bins)]
 
@@ -108,7 +111,7 @@ if __name__ == '__main__':
                         help='Run baseline sim with age_pyramid analyzer (VM-side)')
     parser.add_argument('--resfolder', default='results/v2.3.0_baseline',
                         help='Dir with plot-ready CSVs (for plot mode only)')
-    parser.add_argument('--outpath', default='figures/figS3_age_pyramids.png')
+    parser.add_argument('--outpath', default='figures/figSX_age_pyramids.png')
     parser.add_argument('--years', nargs='+', default=['2025', '2050', '2075', '2100'])
     args = parser.parse_args()
 
@@ -121,8 +124,8 @@ if __name__ == '__main__':
             do_save=False,
             stop=int(args.years[-1]),
         )
-        save_figS3_data(sim, resfolder='results', years=args.years)
-        print('Saved figS3 CSVs to results/ (copy to a versioned baseline dir to commit)')
+        save_figSX_data(sim, resfolder='results', years=args.years)
+        print('Saved figSX CSVs to results/ (copy to a versioned baseline dir to commit)')
     else:
         plot_pops(args.years, resfolder=args.resfolder, outpath=args.outpath)
         print('Done.')

@@ -28,34 +28,47 @@ to_run = [
 ]
 debug = False
 do_save = True
-n_trials = [4000, 2][debug]
-n_workers = [50, 1][debug]
+n_trials = [1000, 2][debug]
+n_workers = [100, 1][debug]
 
 # Top-N trials to keep in the shrunken (committable) calib object.
 N_KEEP = 100
 
 DATA = [
-    'data/nigeria_cancer_cases.csv',
+    'data/nigeria_cancer_cases.csv',           # all_hpv.cancers.<bin>
+    'data/nigeria_asr_cancer_incidence.csv',   # all_hpv.asr_cancer_incidence
+    'data/nigeria_cancer_types.csv',           # by_genotype.cancerous_genotype_dist.<g>
+    'data/nigeria_cin_types.csv',              # by_genotype.cin_genotype_dist.<g>
+    'data/nigeria_hpv_prevalence.csv',         # all_hpv.precin_prevalence.<bin>
 ]
 
 
 def make_calib_pars():
     """Nested [best, low, high] specs for each calibration parameter."""
     pars = dict(
-        m_cross_layer=[0.3, 0.1, 0.7],
-        f_cross_layer=[0.1, 0.05, 0.5],
+        # Post-transm2f=2.0 fix, max safe scalar via route_pars is ~0.5
+        # (was ~0.271). Widened here since defaults now produce lower m2f;
+        # calibrator may want higher beta to hit HPV target.
+        beta=[0.3, 0.15, 0.5],
+        m_cross_layer=[0.5, 0.34, 0.99],
+        f_cross_layer=[0.3, 0.19, 0.94],
         network=dict(
             m_partners_casual=[0.2, 0.1, 0.6],
             f_partners_casual=[0.2, 0.1, 0.6],
         ),
+        cross_immunity=dict(rel_sev=dict(loc=[1.0, 0.5, 1.5])),
     )
+    # transform_prob lower bound widened: default sim produces ~10x too much
+    # cancer, so calibrator needs headroom on the low side to knock it down.
     for g in ['hi5', 'ohr']:
         pars[g] = dict(
-            cancer_fn=dict(transform_prob=[1.5e-3, 0.5e-3, 2.5e-3]),
+            cancer_fn=dict(transform_prob=[8e-4, 1e-4, 2.5e-3]),
             cin_fn=dict(k=[0.15, 0.1, 0.25]),
             dur_cin=dict(mean=[4.5, 3.5, 5.5], std=[20.0, 16.0, 24.0]),
         )
     return pars
+
+
 
 
 def run_calib(n_trials=None, n_workers=None, do_plot=False, do_save=True, filestem=''):

@@ -19,25 +19,39 @@ def network_pars():
     fitting (see research-square.com/article/rs-3074559/v1).
     """
     pars = dict(
-        debut_f=ss.normal(loc=16.0, scale=4.0),
-        debut_m=ss.normal(loc=18.0, scale=4.0),
-        m_partners_marital=0.01,
+        debut_f=ss.lognorm_ex(loc=16.0, scale=2.0),
+        debut_m=ss.lognorm_ex(loc=19.0, scale=3.0),
         m_partners_casual=0.2,
-        f_partners_marital=0.01,
         f_partners_casual=0.2,
     )
 
     # Age-band participation probs. Rows: [age bins], [female], [male].
     pars['layer_probs_marital'] = np.array([
         [0, 5, 10,   15,    20,    25,    30,    35,    40,   45,   50,   55,  60,  65,    70,    75],
-        [0, 0,  0,  0.1,   0.1,  0.15,  0.15,  0.15,   0.2,  0.3,  0.4,  0.4, 0.2, 0.07, 0.035, 0.007],
-        [0, 0,  0,  0.1,   0.1,  0.15,  0.15,   0.2,   0.2,  0.4,  0.4,  0.4, 0.2,  0.1,  0.05,  0.01],
+        [0, 0,  0,  0.1,   0.5,  0.5,  0.4,  0.15,   0.2,  0.3,  0.4,  0.4, 0.2, 0.07, 0.035, 0.007],
+        [0, 0,  0,  0.1,   0.5,  0.5,  0.4,   0.2,   0.2,  0.4,  0.4,  0.4, 0.2,  0.1,  0.05,  0.01],
     ])
+    # layer_probs are willingness-to-engage upper bounds; the actual paired-
+    # partnership rate in the sim ends up notably lower (see figS1 panel C
+    # in the kaz repo). Bumping toward Kaz-style near-saturation for young
+    # ages so calibration has HPV-transmission headroom.
+    _HI = 1.0 - 1e-10
+    # pars['layer_probs_casual'] = np.array([
+    #     [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],
+    #     [0, 0, 0.1, _HI, _HI, 0.75, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.02, 0.02],
+    #     [0, 0, 0.0, 0.6, _HI, _HI, _HI, _HI, 0.75, 0.5, 0.3, 0.2, 0.1, 0.05, 0.02, 0.02],
+    # ])
+    # Previous bumped-up variants (retained for reference):
     pars['layer_probs_casual'] = np.array([
         [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],
-        [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.7, 0.7, 0.6, 0.2, 0.10, 0.02, 0.02, 0.02],
-        [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.6, 0.5, 0.2, 0.02, 0.02, 0.02, 0.02],
+        [0, 0, 0.1, 0.8, 0.8, 0.6, 0.5, 0.4, 0.4, 0.3, 0.3, 0.2, 0.1, 0.02, 0.02, 0.02],
+        [0, 0, 0.0, 0.5, 0.6, 0.6, 0.7, 0.6, 0.5, 0.5, 0.4, 0.3, 0.1, 0.02, 0.02, 0.02],
     ])
+    # pars['layer_probs_casual'] = np.array([
+    #     [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],
+    #     [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.7, 0.7, 0.6, 0.2, 0.10, 0.02, 0.02, 0.02],
+    #     [0, 0, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4, 0.5, 0.6, 0.5, 0.2, 0.02, 0.02, 0.02, 0.02],
+    # ])
 
     return pars
 

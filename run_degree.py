@@ -6,7 +6,7 @@ import pylab as pl
 import utils as ut
 import sciris as sc
 import numpy as np
-import run_sims as rs
+import model as md  # TODO: v2 people attrs (is_female, n_rships, level0) below need porting to v3
 
 
 # %% Functions
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     if do_run:
         calib_pars = sc.loadobj('results/nigeria_pars.obj')
-        sim = rs.run_sim(do_shrink=False, calib_pars=calib_pars)
+        sim = md.run_sim(do_shrink=False, pars=calib_pars)
         f_conds = sim.people.is_female * sim.people.alive * sim.people.level0 * sim.people.is_active
         m_conds = sim.people.is_male * sim.people.alive * sim.people.level0 * sim.people.is_active
         partners = {

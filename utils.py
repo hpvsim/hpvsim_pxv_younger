@@ -17,16 +17,6 @@ def set_font(size=None, font='Libertinus Sans'):
     return
 
 
-def shrink_calib(calib, n_results=100):
-    cal = sc.objdict()
-    plot_indices = calib.df.iloc[0:n_results, 0].values
-    cal.sim_results = [calib.sim_results[i] for i in plot_indices]
-    cal.analyzer_results = [calib.analyzer_results[i] for i in plot_indices]
-    cal.target_data = calib.target_data
-    cal.df = calib.df.iloc[0:n_results, ]
-    return cal
-
-
 def lognorm_params(par1, par2):
     """
     Given the mean and std. dev. of the log-normal distribution, this function
@@ -319,6 +309,111 @@ class prop_married(ss.Analyzer):
         super().finalize()
         self.df = pd.concat(self._dfs, ignore_index=True) if self._dfs else pd.DataFrame()
 
+
+
+def get_sb_from_sims(pars=None, debug=False, verbose=-1):
+    """Extract sexual-behavior fits (AFS, prop_married, age-diffs, casual-partner counts).
+
+    IMPORTANT: This is the ONE code path in the project where do_shrink=False
+    is legal. It uses un-shrunk sim state to read the edge table for
+    behavior post-processing. Never call from calibration or scenario runs
+    — box crashes from RAM. See memory feedback_do_shrink_calibration.
+    """
+    from model import run_sim
+
+    sim = run_sim(
+        pars=pars,
+        analyzers=[AFS(), prop_married()],
+        debug=debug,
+        do_save=False,
+        do_shrink=False,
+    )
+    sim.pars.verbose = verbose
+
+    # Save output on age at first sex (AFS)
+    dfs = sc.autolist()
+    a = sim.analyzers['AFS']
+    for cs, cohort_start in enumerate(a.cohort_starts):
+        df = pd.DataFrame()
+        df['age'] = a.bins
+        df['cohort'] = cohort_start
+        df['model_prop_f'] = a.prop_active_f[cs, :]
+        df['model_prop_m'] = a.prop_active_m[cs, :]
+        dfs += df
+    afs_df = pd.concat(dfs)
+    afs_df.to_csv(f'results/model_sb_AFS.csv', index=False)
+
+    # Save output on proportion married
+    a = sim.analyzers['prop_married']
+    pm_df = a.df
+    pm_df.to_csv(f'results/model_sb_prop_married.csv', index=False)
+
+    # Age differences — read the sexual network edge table at end-of-sim.
+    # p1/p2 are raw uids (up to n_uids); people.age/female are dense over auids.
+    # Build uid-indexed arrays first, then index by p1/p2 directly.
+    people = sim.people
+    auids = np.asarray(people.auids)
+    n_uids = people.n_uids
+
+    age_uid = np.full(n_uids, np.nan)
+    age_uid[auids] = np.asarray(people.age)
+    female_uid = np.zeros(n_uids, dtype=bool)
+    female_uid[auids] = np.asarray(people.female)
+    level0_uid = np.zeros(n_uids, dtype=bool)
+    level0_uid[auids] = ~np.asarray(people.fine.values)  # non-multiscaled
+    alive_uid = np.zeros(n_uids, dtype=bool)
+    alive_uid[auids] = True  # auids are already the alive set
+
+    net = sim.networks.sexualnetwork
+    mask = net.edges_for_layer('m')
+    p1 = np.asarray(net.edges.p1)[mask]
+    p2 = np.asarray(net.edges.p2)[mask]
+    # Determine which end is male; compute (age_male - age_female)
+    age_diffs = np.where(female_uid[p1], age_uid[p2] - age_uid[p1], age_uid[p1] - age_uid[p2])
+    from scipy.stats import gaussian_kde
+    kde = gaussian_kde(age_diffs)
+    x = np.linspace(-15, 35, 300)
+    agediff_df = pd.DataFrame({'x': x, 'density': kde(x)})
+    agediff_df.to_csv('results/age_diffs_kde.csv', index=False)
+
+    # Casual partner counts by age bin — count casual-layer edges per uid.
+    cmask = net.edges_for_layer('c')
+    cp1 = np.asarray(net.edges.p1)[cmask]
+    cp2 = np.asarray(net.edges.p2)[cmask]
+    partners = np.zeros(n_uids, dtype=int)
+    np.add.at(partners, cp1, 1)
+    np.add.at(partners, cp2, 1)
+
+    binspan = 5
+    bins = np.arange(15, 50, binspan)
+    general_conditions = female_uid & alive_uid & level0_uid & (age_uid >= 15)
+
+    conditions = {}
+    for ab in bins:
+        conditions[ab] = (age_uid >= ab) & (age_uid < ab + binspan) & general_conditions
+
+    casual_partners = {(0, 1): sc.autolist(), (1, 2): sc.autolist(), (2, 3): sc.autolist(),
+                       (3, 5): sc.autolist(), (5, 50): sc.autolist()}
+    for cp in casual_partners.keys():
+        for ab in bins:
+            this_condition = conditions[ab] & (partners >= cp[0]) & (partners < cp[1])
+            casual_partners[cp] += int(this_condition.sum())
+
+    popsize = sc.autolist()
+    for ab in bins:
+        popsize += int(conditions[ab].sum())
+
+    n_bins = len(bins)
+    partners_col = np.repeat([0, 1, 2, 3, 5], n_bins)
+    allbins = np.tile(bins, 5)
+    counts = np.concatenate([val for val in casual_partners.values()])
+    allpopsize = np.tile(popsize, 5)
+    shares = counts / allpopsize
+    datadict = dict(bins=allbins, partners=partners_col, counts=counts, popsize=allpopsize, shares=shares)
+    casual_df = pd.DataFrame.from_dict(datadict)
+    casual_df.to_csv(f'results/model_casual.csv', index=False)
+
+    return sim, afs_df, pm_df, agediff_df, casual_df
 
 
 # %% Run as a script

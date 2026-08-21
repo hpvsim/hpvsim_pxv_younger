@@ -13,7 +13,7 @@ import pandas as pd
 import sciris as sc
 import seaborn as sns
 
-import run_sims as rs
+import run_calibration as rc
 import utils as ut
 
 
@@ -49,7 +49,7 @@ def save_figS2_data(calib, res_to_plot=100, resfolder='results'):
     # calib.sim); to_dataframe returns year-indexed, age-bin-column DataFrame.
     # Bin index 0..N-1 matches the v2 CSV 'bin' column that plot_calib reads.
     per_trial = np.array([
-        s.analyzers['by_age'].to_dataframe('cancers').iloc[0].values
+        s.analyzers['all_hpv_by_age'].to_dataframe('cancers').iloc[0].values
         for s in sims
     ])
     pd.DataFrame({
@@ -163,8 +163,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.run_sim:
-        sim, calib = rs.run_calib(n_trials=rs.n_trials, n_workers=rs.n_workers,
-                                  do_save=True, filestem='')
+        calib = rc.run_calib(n_trials=rc.n_trials, n_workers=rc.n_workers,
+                             do_save=True, filestem='')
         save_figS2_data(calib, res_to_plot=args.res_to_plot, resfolder='results')
         print('Saved figS2 CSVs to results/ (copy to a versioned baseline dir to commit)')
     else:

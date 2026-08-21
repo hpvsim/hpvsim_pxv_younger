@@ -23,7 +23,7 @@ import hpvsim as hpv
 import starsim as ss
 
 # Imports from this repository
-import run_sims as rs
+import model as md
 
 # Settings - used here and imported elsewhere
 debug = 0
@@ -230,7 +230,7 @@ def make_sims(calib_pars=None, vx_scenarios=None):
     for name, vx_intv in vx_scenarios.items():
         for seed in range(n_seeds):
             interventions = vx_intv + st_intv
-            sim = rs.make_sim(calib_pars=calib_pars, debug=debug, interventions=interventions, end=2100, seed=seed)
+            sim = md.make_sim(pars=calib_pars, debug=debug, interventions=interventions, stop=2100, seed=seed)
             sim.label = name
             all_sims += sim
 

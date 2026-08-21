@@ -13,7 +13,6 @@ import pandas as pd
 import sciris as sc
 import seaborn as sns
 
-import run_sims as rs
 import utils as ut
 
 
@@ -116,7 +115,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.run_sim:
-        rs.get_sb_from_sims()
+        ut.get_sb_from_sims()
         print(f'Saved sexual-behavior CSVs to results/')
     else:
         plot_sb(resfolder=args.resfolder, outpath=args.outpath)

@@ -13,7 +13,7 @@ import pandas as pd
 import sciris as sc
 import seaborn as sns
 
-import run_sims as rs
+import model as md
 import utils as ut
 
 
@@ -115,11 +115,11 @@ if __name__ == '__main__':
     if args.run_sim:
         import hpvsim as hpv
         calib_pars = sc.loadobj(f'{args.resfolder}/nigeria_pars.obj')
-        sim = rs.run_sim(
-            calib_pars=calib_pars,
+        sim = md.run_sim(
+            pars=calib_pars,
             analyzers=[hpv.age_pyramid(timepoints=args.years, edges=np.arange(0, 81, 10), datafile='data/nigeria_age_pyramid_reduced.csv')],
             do_save=False,
-            end=int(args.years[-1]),
+            stop=int(args.years[-1]),
         )
         save_figS3_data(sim, resfolder='results', years=args.years)
         print('Saved figS3 CSVs to results/ (copy to a versioned baseline dir to commit)')

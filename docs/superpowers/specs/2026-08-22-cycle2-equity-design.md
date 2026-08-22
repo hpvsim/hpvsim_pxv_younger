@@ -17,10 +17,10 @@ Cycle 2 is the reviewer revision. Six reviewer items, condensed into three code 
 | DTP3 coverage | R2 #6 | **Absorbed into equity analysis.** Realistic Nigeria coverage (2023 27% / 2024-25 60%) becomes the S2 scenario coverage ramp. |
 | Equity / OOS | R1 (main critique) | **NEW analysis.** Education module + scenario matrix (S0/S2/S3). Central quantitative response to R1 "does not sufficiently quantify potential benefits and feasibility." |
 | Subnational | R2 #7 | **Discussion paragraph.** Nigeria HPV strategy + subnational as limitation. |
-| Parameter table | R2 #3 | **Appendix table**, auto-generated from calibrated + fixed pars. |
+| Parameter table | R2 #3 | **Appendix table only**, auto-generated from calibrated + fixed pars. |
 | Intro/Discussion | R1, R3, R4 | **Manuscript restructuring.** Writing only. |
 
-**Drop:** Fig 3 (design-spec plan; the equity scenarios in the new Fig now carry the feasibility narrative).
+**Fig 3 repurposed:** dropped from the cycle 1 plan (multi-metric time series), reintroduced here as an infant-VE threshold-analysis figure (see §5.2).
 
 **No recalibration.** All cycle 2 scenarios ride on the v6 calibration (`raw_results/nigeria_calib.obj`, `results/nigeria_pars.obj`).
 
@@ -66,22 +66,38 @@ Boys are not tracked (they do not receive vaccination in this analysis; the netw
 
 ### 3.4 Validation
 
-New analyzer: `EducationSnapshot` writes `results/education_by_age.csv` — shares of ever-enrolled, currently-enrolled, primary-complete by age. One-shot visual check against DHS enrollment-by-age curve for Nigeria. Not a calibration target; if the DHS curve deviates >10pp from the model, revisit `p_enroll_annual` / `p_dropout_annual` defaults.
+New analyzer: `EducationSnapshot` writes `results/education_by_age.csv` — shares of ever-enrolled, currently-enrolled, primary-complete by age. Sanity-check the module against published Nigeria enrollment / primary-completion point estimates (UNESCO UIS, MICS, or academic literature — sources chosen at implementation time). Not a calibration target; if the module output diverges >~10pp from published estimates on the two headline numbers (share ever-enrolled at 12, share completing primary at 14), revisit `p_enroll_annual` / `p_dropout_annual` defaults.
 
 ## 4. Scenario matrix
 
-Refactor `run_scenarios.py` to produce three scenarios. All run 2020-2100 on top of the calibrated sim; vaccination programs start 2023.
+Refactor `run_scenarios.py` to produce five scenarios: two comparators + three vaccination programs. All run 2020-2100 on top of the calibrated sim; vaccination programs start 2023.
 
-### 4.1 S0 — WHO independent (aspirational upper bound)
+Two axes: (i) vaccination program (none / status-quo / WHO / realistic / infant), (ii) screening level (baseline-low / WHO scale-up). The comparators (S_novax, S_sq) hold screening at baseline; the three treatment scenarios (S_who, S_realistic, S_infant) scale up screening.
+
+### 4.1 S_novax — no vaccination comparator
+
+- **Vaccination.** None.
+- **Screening.** Baseline Nigeria coverage (very low, e.g. ~5-10% — implementation-time literature value).
+- **Treatment.** 90% of screen-positive, drawn independently.
+- **Purpose.** Zero-intervention counterfactual. Anchors "how many lives are saved by *any* vaccination program".
+
+### 4.2 S_sq — status quo comparator
+
+- **Vaccination.** Current Nigeria adolescent program at reported coverage (27→60→60% ramp, 2023-2025+). Uses education-correlated eligibility (§4.6). No calibrated screening scale-up.
+- **Screening.** Baseline Nigeria coverage, as S_novax.
+- **Treatment.** 90% of screen-positive, drawn independently.
+- **Purpose.** Current trajectory. Answers "what happens if nothing changes".
+
+### 4.3 S_who — WHO independent (aspirational upper bound)
 
 - **Vaccination.** Adolescent (age 9-14) at 90% coverage, drawn independently. No Education gating; uses existing `hpv.routine_vx` + `hpv.campaign_vx` eligibility.
 - **Screening.** 70% coverage, drawn independently.
 - **Treatment.** 90% of screen-positive, drawn independently.
-- **Purpose.** Hypothetical upper bound: what if WHO targets were achievable, and coverage were drawn independently across the population.
+- **Purpose.** Hypothetical upper bound if WHO targets were achievable and coverage were drawn independently across the population.
 
-### 4.2 S2 — realistic correlated (Nigeria baseline)
+### 4.4 S_realistic — realistic correlated
 
-- **Vaccination.** Adolescent (age 9-14), coverage ramp:
+- **Vaccination.** Adolescent (age 9-14), coverage ramp under education correlation:
 
   | Year | In-school uptake | OOS uptake | Total (approx) |
   |---|---|---|---|
@@ -89,45 +105,56 @@ Refactor `run_scenarios.py` to produce three scenarios. All run 2020-2100 on top
   | 2024 | 90% | tuned (~15%) | ~60% |
   | 2025+ | 90% | tuned (~15%) | ~60% |
 
-  Eligibility callback: `in_school` at time of vaccination determines which uptake applies. `OOS uptake` tuned each year so that the *observed* total matches the reported Nigeria coverage (27→60→60%). Coverage denominator: all girls regardless of school status (see §7.1 for the caveat).
+  Eligibility callback: `in_school` at time of vaccination determines which uptake applies. `OOS uptake` tuned each year so that observed total matches Nigeria reported coverage. Coverage denominator: all girls regardless of school status (see §7.1 for the caveat).
 
-- **Screening.** Piecewise on `edu_attainment`: post-primary (`edu_attainment >= 6`) uptake = `p_base`; pre-primary uptake = `p_base / OR` with `OR = 5` (Nigeria PMC6100336 default, moderated from published OR 71 given the wide CI; SI sensitivity at OR = 2 and OR = 10). `p_base` calibrated so the WHO 70% target is reachable given Nigeria's edu-attainment distribution.
-- **Treatment.** 90% of screen-positive, drawn independently (no education correlation assumed for treatment access).
-- **Purpose.** Nigeria's actual baseline. Central comparator for S3.
-
-### 4.3 S3 — infant vaccination, education-neutral
-
-- **Vaccination.** Infant (age 0) at 60% coverage, drawn independently (DTP3-like delivery through routine immunisation). Same 2023-25 ramp shape as S2 for temporal comparability. No Education gating.
-- **Screening.** Same piecewise-on-`edu_attainment` rule as S2.
+- **Screening.** Piecewise on `edu_attainment`: post-primary (`edu_attainment >= 6`) uptake = `p_base`; pre-primary uptake = `p_base / OR` with `OR = 5` (default; SI sensitivity at OR = 2 and OR = 10). `p_base` tuned so aggregate coverage hits WHO 70% target given Nigeria's edu-attainment distribution.
 - **Treatment.** 90% of screen-positive, drawn independently.
-- **Purpose.** Same 60% aggregate vaccination coverage as S2 but delivered without education correlation. The S2→S3 gap is the equity payoff.
+- **Purpose.** Nigeria's realistic conditions under the education-correlation mechanism. Central comparator for S_infant.
 
-### 4.4 Implementation notes
+### 4.5 S_infant — infant vaccination, education-neutral
+
+- **Vaccination.** Infant (age 0) at 60% coverage, drawn independently (DTP3-like delivery through routine immunisation). Same 2023-25 ramp shape as S_realistic. No Education gating.
+- **Screening.** Same piecewise-on-`edu_attainment` rule as S_realistic.
+- **Treatment.** 90% of screen-positive, drawn independently.
+- **Purpose.** Same 60% aggregate vaccination coverage as S_realistic but delivered without education correlation. The S_realistic → S_infant gap is the equity payoff.
+
+### 4.6 Implementation notes
 
 - Reuse the existing v3 `hpv.routine_vx` / `hpv.campaign_vx` interventions; the education correlation is expressed via the `eligible=` callback that filters on `sim.people.education.in_school` or `sim.people.education.edu_attainment`.
 - Scenarios run as `ss.MultiSim` with N seeds (existing pattern from cycle 1 `run_scenarios.py`).
 
 ## 5. Figures
 
-### 5.1 Fig 2 replacement — equity figure (`plot_fig_equity.py`)
+Baseline vaccine efficacy assumptions (used in Figs 2 and 3, held constant unless a figure explicitly varies them):
 
-Cumulative cervical cancer cases 2025-2100 across S0/S2/S3, split by education stratum. Concept:
+- Adolescent vaccination: **VE = 98%** (published HPV vaccine trial efficacy in the routine target age band).
+- Infant vaccination: **VE = 70%** baseline (lower than adolescent to reflect uncertainty about the long protection window from age 0 to sexual debut; explicit sensitivity 50-90% in Fig 3).
 
-- 3 groups of 2 bars each (S0, S2, S3 × in-school-completer, OOS).
-- Overlay: total per scenario as a horizontal line.
-- Secondary panel: inequality ratio (OOS cancer risk / in-school-completer cancer risk) as a function of time.
+### 5.1 Fig 2 — main equity figure (`plot_fig_equity.py`)
 
-### 5.2 Waning illustration (`plot_fig_waning.py`)
+Two-panel figure at the anchor efficacies above.
+
+- **Left (2/3 width): ASR cervical cancer incidence time series, 2020-2100.** Five lines: S_novax, S_sq, S_who, S_realistic, S_infant. Ribbons for top-50 uncertainty across the calibrated posterior. Highlights the trajectory divergence over decades.
+- **Right (1/3 width): Cumulative cervical cancer cases 2025-2060, 5 bars.** Same five scenarios; error bars from top-50 uncertainty. Anchors the "cases averted" bottom line.
+
+Deliberately does not break out cases by education stratum in the main figure — that visualisation would raise ancillary questions this paper is not equipped to answer, and the aggregate ASR + cumulative-cases panels already carry the equity story via S_realistic vs S_infant.
+
+### 5.2 Fig 3 — infant VE threshold (`plot_fig_threshold.py`)
+
+Sensitivity analysis on infant VE, holding adolescent VE fixed at 98%. Concept: two-panel figure showing the *break-even* infant efficacy at which infant vaccination matches or exceeds S_realistic.
+
+- **Left panel: 1D sensitivity curves.** X-axis: infant VE from 50% to 90%. Y-axis: cumulative cervical cancer cases 2025-2060. Three lines: S_realistic (horizontal reference), S_infant (varies with VE), and their difference. Identifies the break-even infant VE.
+- **Right panel: 2D heatmap or contour.** X-axis: infant VE (50-90%). Y-axis: education-screening OR (2, 5, 10). Colour: cases averted by S_infant vs S_realistic. Shows how the equity payoff scales with both the vaccine mechanism and the strength of the education correlation.
+
+Reintroduces Fig 3 (dropped in cycle 1's original plan) with a substantively different threshold-analysis payload.
+
+### 5.3 Waning illustration (`plot_fig_waning.py`)
 
 Analytical figure, no sim runs. Y-axis: efficacy fraction. X-axis: years post-vaccination. Show 2-3 sigmoidal profiles (flat ~10 years then decline to asymptote, per the Oxford/JID reference figure). Annotate the 15-year gap (infant → sexual debut) and mark efficacy-at-debut for each profile. Purpose: illustrate that calibrated efficacy is efficacy-at-debut = `admin × waning(gap)`.
 
-### 5.3 Parameter table (`plot_table_pars.py`)
+### 5.4 Parameter table (appendix, `plot_table_pars.py`)
 
-Extract calibrated pars from `results/nigeria_pars.obj` + fixed pars from `model.py` → CSV + LaTeX-formatted appendix table. Group by module (network, per-genotype natural history, cross-immunity, education).
-
-### 5.4 Fig 3 dropped
-
-The current Fig 3 (multi-metric time series) is dropped from the revision, as flagged in the cycle 1 design spec. The equity figure carries the feasibility narrative.
+Extract calibrated pars from `results/nigeria_pars.obj` + fixed pars from `model.py` → CSV + LaTeX-formatted table. Group by module (network, per-genotype natural history, cross-immunity, education). Appendix-only.
 
 ## 6. Writing deliverables
 
@@ -155,12 +182,13 @@ Defaults in §3.3 are order-of-magnitude estimates. Implementation phase will pu
 
 Roughly one commit per bullet.
 
-1. `pxv_younger/education.py` — module + `EducationSnapshot` analyzer. Local pytest + `education_by_age.csv` validation figure.
-2. `run_scenarios.py` — refactor to produce S0/S2/S3. Verify S0 with education-neutral eligibility matches the pre-refactor scenario output (regression guard).
-3. `plot_fig_equity.py` — equity figure. First render at existing calibration.
-4. `plot_fig_waning.py` — analytical illustration. No sim runs.
-5. `plot_table_pars.py` — appendix table.
-6. Writing pass (Methods → Results → Discussion → response letter).
+1. `pxv_younger/education.py` — module + `EducationSnapshot` analyzer. Sanity-check `education_by_age.csv` against published Nigeria enrollment / primary-completion estimates.
+2. `run_scenarios.py` — refactor to produce S_novax, S_sq, S_who, S_realistic, S_infant. Verify S_who with education-neutral eligibility matches the pre-refactor scenario output (regression guard). Adolescent VE 98%, infant VE 70% anchors set here.
+3. `plot_fig_equity.py` — Fig 2 (ASR time series + cumulative bars, 5 scenarios).
+4. `plot_fig_threshold.py` — Fig 3 (infant VE sensitivity 50-90%; break-even + 2D heatmap over VE × screening OR).
+5. `plot_fig_waning.py` — analytical illustration. No sim runs.
+6. `plot_table_pars.py` — appendix parameter table.
+7. Writing pass (Methods → Results → Discussion → response letter).
 
 Cycle 2 does not open a new branch; commits go to `v3-port` and the branch renames to `cycle2` at first commit if a PR structure calls for it.
 

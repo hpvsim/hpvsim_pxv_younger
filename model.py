@@ -58,7 +58,7 @@ def network_pars():
 
 def make_sim(pars=None, debug=0, n_agents=None, dt=None, start=None, stop=2020,
              genotypes=None, ms_agent_ratio=100,
-             interventions=None, analyzers=None, seed=1):
+             interventions=None, analyzers=None, custom=None, seed=1):
     """Build the baseline Nigeria sim."""
     if n_agents is None:
         n_agents = [20_000, 1_000][debug]
@@ -81,6 +81,7 @@ def make_sim(pars=None, debug=0, n_agents=None, dt=None, start=None, stop=2020,
         ms_agent_ratio=ms_agent_ratio,
         interventions=interventions,
         analyzers=analyzers,
+        custom=custom,
         rand_seed=seed,
         pars=pars,
     )

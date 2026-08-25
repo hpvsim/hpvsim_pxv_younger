@@ -32,6 +32,14 @@ INFANT_VE = 0.95
 INFANT_VE_MODERATE = 0.70
 INFANT_VE_LOW      = 0.50
 
+# Nigeria regulatory approval + Gavi supply is quadrivalent (HPV 16/18/6/11);
+# per-genotype protection factors are set in hpvsim/data/products_vx.csv.
+# All scenarios use the same product; ``sterilizing_p=ve`` multiplies each
+# per-genotype factor. Quadrivalent covers ~70% of Nigerian cervical cancers
+# via HPV 16/18 with weaker cross-protection against other high-risk types
+# than nonavalent.
+VX_PRODUCT = 'quadrivalent'
+
 # Nigeria historical adol vax rollout (aggregate), shared by all non-novax
 # scenarios so they are identical through 2025.
 BASE_ADOL_RAMP = {2023: 0.27, 2024: 0.60, 2025: 0.60}
@@ -77,6 +85,9 @@ SCENARIO_NAMES = [
     'S_sq_screenup_or1', 'S_sq_screenup_or5',
     'S_who_or1', 'S_who_or5',
     'S_infant_full', 'S_infant_eff70', 'S_infant_eff50',
+] + [
+    f'S_infant_c{int(c*100):02d}_e{int(e*100):02d}'
+    for c in (0.60, 0.75, 0.90) for e in (0.50, 0.70, 0.95)
 ]
 
 
@@ -372,9 +383,13 @@ def make_st(baseline=BASELINE_SCREEN_COV,
 
 # %% Vaccine intervention builders (one per scenario)
 
-def _mk_vx_product(module_name, ve, base='nonavalent'):
+def _mk_vx_product(module_name, ve, base=VX_PRODUCT):
     """Instantiate a preset vx product with a custom module name (avoids
-    starsim's 'Module already added' error when multiple products coexist)."""
+    starsim's 'Module already added' error when multiple products coexist).
+
+    ``base`` defaults to ``VX_PRODUCT`` (quadrivalent — Nigeria's current
+    Gavi-supplied product); override for sensitivity analyses.
+    """
     prod = hpv.vx(name=base, sterilizing_p=ve)
     prod.name = module_name
     return prod
@@ -473,6 +488,19 @@ _INFANT_EFF_MAP = {
     'S_infant_eff50': INFANT_VE_LOW,
 }
 
+# Fig 5 sensitivity grid: infant coverage × efficacy. 60% row anchors on
+# Nigeria DTP3 coverage (~62% in 2023); 90% row is the optimistic reach
+# used elsewhere in the paper; 75% is the interpolated middle. Efficacy
+# grid brackets the plausible waning-at-exposure range. Nine scenarios;
+# the c90 row overlaps conceptually with S_infant_{full,eff70,eff50} but
+# is registered separately so the figure is self-contained.
+INFANT_COV_LEVELS = (0.60, 0.75, 0.90)
+INFANT_VE_LEVELS  = (0.50, 0.70, 0.95)
+_FIG5_INFANT_GRID = {
+    f'S_infant_c{int(c*100):02d}_e{int(e*100):02d}': (c, e)
+    for c in INFANT_COV_LEVELS for e in INFANT_VE_LEVELS
+}
+
 
 def _sq_adol_arms(prefix, stop_year=None):
     """SQ vax post-2026: solve for in-school/OOS split hitting 60%
@@ -540,17 +568,26 @@ def _build_interventions_for(name, sim_end_year, infant_ve_override=None,
     if name in _INFANT_EFF_MAP:
         infant_ve = (infant_ve_override if infant_ve_override is not None
                      else _INFANT_EFF_MAP[name])
+        infant_cov = INFANT_COV_SCALEUP
+    elif name in _FIG5_INFANT_GRID:
+        infant_cov, infant_ve = _FIG5_INFANT_GRID[name]
+        if infant_ve_override is not None:
+            infant_ve = infant_ve_override
+    else:
+        infant_cov = None
+
+    if infant_cov is not None:
         # Infant scenarios use the CORRELATED screening pair (post=0.90,
         # pre=0.50) — infant delivery breaks the vax-education correlation
         # but screening still tracks primary completion.
         post, pre = _CORRELATED_SCREEN
         # SQ adol program continues 2026-2029 as a bridge (age 9-10 at
         # 60% aggregate, edu_OR=5). In 2030 the adol program STOPS and
-        # infant delivery takes over: 90% routine at age 0-1 from 2030
-        # + single-year age-1-9 catchup in 2030 at the same 90%.
-        # This closes the gap the old design had for born 2017-2020.
+        # infant delivery takes over: ``infant_cov`` routine at age 0-1
+        # from 2030 + single-year age-1-9 catchup in 2030 at the same
+        # coverage. Closes the gap for cohorts born 2017-2020.
         bridge = _sq_adol_arms(name.lower(), stop_year=INFANT_START_YEAR)
-        infant = _infant_routine(name.lower(), INFANT_COV_SCALEUP, infant_ve,
+        infant = _infant_routine(name.lower(), infant_cov, infant_ve,
                                  INFANT_START_YEAR)
         return (make_st(post_target=post, pre_target=pre, end_year=sim_end_year)
                 + base + bridge + infant)
@@ -647,15 +684,25 @@ def _extract_rows(sim, **tags):
 
 def run_all_scenarios(n_pars=3, n_seeds=3, stop=2125,
                       out_csv='results/cycle2_scens.csv',
-                      out_obj='raw_results/cycle2_scens.obj',
+                      out_obj=None,
                       n_workers=None,
                       **sim_kwargs):
     """Run all scenarios × n_pars × n_seeds in ONE MultiSim so every sim
-    parallelizes at once. With 9 scenarios × 4 replicates = 36 sims,
-    a 36-core box drops runtime from ~9 * per-sim to ~1 * per-sim.
+    parallelizes at once.
 
-    ``n_workers`` defaults to min(n_sims, cpu_count). Set explicitly to
-    cap RAM (each sim holds a Sim state).
+    Memory-safe by default: extracts summary rows from each finished sim
+    then drops the reference so the parent process never holds all raw
+    Sim objects at once. Only the compact ``rows`` list (~a few tens of
+    MB) and the CSV write survive to the end.
+
+    ``out_obj`` defaults to None — do NOT pickle the raw sim objects
+    unless a caller explicitly wants them. Cloudpickling 100+ fully-
+    populated Sim objects has crashed the box (see incident 2026-08-25).
+    If you truly need raw sims, use ``hpv.make_calib_sims`` to rerun the
+    top-N calibration draws with an extract_fn instead.
+
+    ``n_workers`` defaults to min(n_sims, cpu_count). Each parallel
+    worker peaks around 2-3 GB near the end of the horizon.
     """
     par_sets = _load_top_par_sets(n_pars)
     sims = []
@@ -673,11 +720,17 @@ def run_all_scenarios(n_pars=3, n_seeds=3, stop=2125,
     msim = ss.MultiSim(sims=sims)
     msim.run(n_cpus=n_workers)
 
-    scenarios = {name: [] for name in SCENARIO_NAMES}
     rows = []
-    for tag, sim in zip(tags, msim.sims):
+    scenarios = {name: [] for name in SCENARIO_NAMES} if out_obj else None
+    n = len(msim.sims)
+    for i in range(n):
+        tag = tags[i]
+        sim = msim.sims[i]
         rows += _extract_rows(sim, **tag)
-        scenarios[tag['scenario']].append(sim)
+        if scenarios is not None:
+            sim.shrink()  # drop people arrays; keep results only
+            scenarios[tag['scenario']].append(sim)
+        msim.sims[i] = None  # free RAM immediately
 
     os.makedirs(os.path.dirname(out_csv), exist_ok=True)
     df = pd.DataFrame(rows)

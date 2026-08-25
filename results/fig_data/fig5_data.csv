@@ -1,0 +1,12 @@
+scenario,year,metric,stratum,cohort,stat,value
+S_infant_c60_e50,2025_2100,new_cancers,all,vt_group,mean,322193.9566672783
+S_infant_c60_e70,2025_2100,new_cancers,all,vt_group,mean,275354.65145967645
+S_infant_c60_e95,2025_2100,new_cancers,all,vt_group,mean,253633.40317372265
+S_infant_c75_e50,2025_2100,new_cancers,all,vt_group,mean,277205.4294266652
+S_infant_c75_e70,2025_2100,new_cancers,all,vt_group,mean,241512.91201761863
+S_infant_c75_e95,2025_2100,new_cancers,all,vt_group,mean,218894.7675675358
+S_infant_c90_e50,2025_2100,new_cancers,all,vt_group,mean,242238.85337272644
+S_infant_c90_e70,2025_2100,new_cancers,all,vt_group,mean,209881.2054981221
+S_infant_c90_e95,2025_2100,new_cancers,all,vt_group,mean,191928.4098776506
+S_sq,2025_2100,new_cancers,all,vt_group,mean,403410.15773843514
+S_who_or5,2025_2100,new_cancers,all,vt_group,mean,178742.54453042115

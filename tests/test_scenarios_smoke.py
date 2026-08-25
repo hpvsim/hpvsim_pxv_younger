@@ -1,8 +1,8 @@
 """Calibration smoke test.
 
-Cycle-2 scenario smoke coverage lives in ``test_scenarios.py``. The legacy
-tests here referenced the pre-cycle-2 ``make_vx_scenarios`` API and a small-
-sim treatment cascade that was inherently flaky, so they were removed.
+Scenario smoke coverage lives in ``test_scenarios.py``. Legacy tests here
+referenced the older ``make_vx_scenarios`` API and a small-sim treatment
+cascade that was inherently flaky, so they were removed.
 """
 
 

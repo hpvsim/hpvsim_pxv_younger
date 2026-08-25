@@ -6,8 +6,6 @@ eligibility callbacks in ``run_scenarios.py`` (S_sq, S_realistic, S_infant).
 
 ``EducationSnapshot`` (ss.Analyzer) writes ``results/education_by_age.csv``
 on finalize for validation against Nigeria published estimates.
-
-See ``docs/superpowers/specs/2026-08-22-cycle2-equity-design.md`` §3.
 """
 import numpy as np
 import pandas as pd

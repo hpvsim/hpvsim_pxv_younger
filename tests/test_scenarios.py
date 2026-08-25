@@ -1,4 +1,4 @@
-"""Smoke tests for cycle-2 scenario builders."""
+"""Smoke tests for the scenario builders in run_scenarios.py."""
 import os
 import sys
 

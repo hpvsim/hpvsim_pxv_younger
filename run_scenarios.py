@@ -1,8 +1,9 @@
-"""Cycle 2 revision scenarios: no-vax + status-quo + WHO + realistic + infant.
+"""Scenario matrix for the pxv_younger analysis: no-vax + status-quo +
+WHO scale-up + infant delivery, with a 3x3 infant coverage x efficacy
+sensitivity grid.
 
-See docs/superpowers/specs/2026-08-22-cycle2-equity-design.md §4 for the
-scientific framing. Runs top-N calibrated parameter sets × N seeds per
-scenario. Rides on the v6 calibration (no recalibration in cycle 2).
+Runs top-N calibrated parameter sets x N seeds per scenario against the
+Nigeria HPVsim v3.1.0 calibration.
 """
 import os
 
@@ -23,8 +24,8 @@ import model as md
 from education import Education, CancerByVaxStatus, COHORTS
 
 
-# Cycle 2 anchors (see spec §5 and §4). Baseline assumption: adolescent
-# and infant vaccination give the same 95% sterilizing efficacy. hpvsim
+# Baseline assumption: adolescent and infant vaccination give the same
+# 95% sterilizing efficacy per dose at administration. hpvsim
 # implements this via a per-agent Bernoulli draw at ``sterilizing_p``
 # (see hpvsim/products.py).
 ADOL_VE = 0.95
@@ -73,7 +74,7 @@ INFANT_COV_SCALEUP   = 0.90
 
 BASELINE_SCREEN_COV = 0.15  # lifetime coverage under status quo (no scale-up)
 
-# 9-scenario cycle-2 matrix. Three narrative acts:
+# 9-scenario matrix. Three narrative acts:
 #   Act 1: S_novax + S_sq (baseline: SQ vax with edu_or=5 correlation)
 #   Act 2: S_sq_screenup_or{1,5} + S_who_or{1,5} (screening + full scale-ups,
 #          each in a no-correlation vs edu_or=5 pair)
@@ -600,7 +601,7 @@ def _build_interventions_for(name, sim_end_year, infant_ve_override=None,
 def build_scenario_sim(name, calib_pars=None, rand_seed=0,
                        infant_ve_override=None, edu_or_override=None,
                        **sim_kwargs):
-    """Build a sim configured for one of the 5 cycle-2 scenarios."""
+    """Build a sim configured for one of the scenarios in ``SCENARIO_NAMES``."""
     sim_end_year = sim_kwargs.get('stop', 2100)
     interventions = _build_interventions_for(
         name, sim_end_year=sim_end_year,
@@ -683,7 +684,7 @@ def _extract_rows(sim, **tags):
 
 
 def run_all_scenarios(n_pars=3, n_seeds=3, stop=2125,
-                      out_csv='results/cycle2_scens.csv',
+                      out_csv='raw_results/scenarios.csv',
                       out_obj=None,
                       n_workers=None,
                       **sim_kwargs):

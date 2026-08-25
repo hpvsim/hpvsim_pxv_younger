@@ -1,6 +1,6 @@
 # Prophylactic HPV vaccination for infants (Nigeria)
 
-Code for analysing the impact of moving HPV prophylactic vaccination to infant delivery in Nigeria, with a screening equity story woven in. This is the cycle-2 revision built on **HPVsim rc3.1.0** (Starsim v3.x).
+Code for analysing the impact of moving HPV prophylactic vaccination to infant delivery in Nigeria, with a screening equity story woven in. Built on **HPVsim rc3.1.0** (Starsim v3.x).
 
 Legacy v2.0.x baselines live in [`results/v2.0.x_published/`](results/v2.0.x_published/) and legacy scripts are preserved under [`archive/`](archive/).
 
@@ -20,7 +20,8 @@ run_scenarios.py         9-scenario ensemble runner + intervention builders
 education.py             Education module + CancerByVaxStatus analyzer
 model.py                 Nigeria sim builder (transmission, network, demography)
 plot_common.py           Shared styling + query helpers for main figures
-plot_fig{1,2,3,4}.py     Main manuscript figures
+plot_fig{1,2,3,4,5}.py   Main manuscript figures
+prepare_fig_data.py      Aggregates raw scenarios CSV -> per-figure summary CSVs
 plot_figS{1,2,4}_*.py    Supplementary figures
 plot_table_pars.py       Parameter appendix table
 run_calibration.py       Calibration entry point
@@ -45,9 +46,10 @@ Each figure script has two modes: the heavy step (calibration or scenario ensemb
 | Figure | Script | Story | Data |
 |---|---|---|---|
 | **Fig 1** | `plot_fig1.py` | Analytical framing: required infant coverage (VCI) as a function of infant efficacy + illustrative waning profiles | Analytical, no CSV |
-| **Fig 2** | `plot_fig2.py` | Status-quo profile: ASR + vax×screen composition + annual cases by birth cohort | `results/cycle2_scens.csv` |
-| **Fig 3** | `plot_fig3.py` | Screening scale-up story: pre-2015 cohort time series + bars + VT-cohort composition | `results/cycle2_scens.csv` |
-| **Fig 4** | `plot_fig4.py` | Infant vax introduction + efficacy sensitivity: ASR + VT cohort bars | `results/cycle2_scens.csv` |
+| **Fig 2** | `plot_fig2.py` | Status-quo profile: ASR + vax×screen composition + annual cases by birth cohort | `results/fig_data/fig2_data.csv` |
+| **Fig 3** | `plot_fig3.py` | Pre- vs post-2015 cohort screening scale-up story | `results/fig_data/fig3_data.csv` |
+| **Fig 4** | `plot_fig4.py` | Infant vax introduction + efficacy sensitivity: ASR + VT cohort bars | `results/fig_data/fig4_data.csv` |
+| **Fig 5** | `plot_fig5.py` | Infant coverage × efficacy sensitivity heatmap | `results/fig_data/fig5_data.csv` |
 
 ## Supplementary figures
 
@@ -68,7 +70,9 @@ python run_scenarios.py --n-pars 2 --n-seeds 2 --stop 2125
 python run_scenarios.py --n-pars 5 --n-seeds 5 --stop 2125
 ```
 
-Writes `results/cycle2_scens.csv` (plot-ready long-format) + `raw_results/cycle2_scens.obj` (full msim, gitignored). All 36+ sims run in one `MultiSim` in parallel via `ss.multi_run(n_cpus=...)`.
+Writes the raw scenarios CSV to `raw_results/scenarios.csv` (gitignored — too large to commit). Then run `python prepare_fig_data.py` to aggregate it into the small per-figure summary CSVs under `results/fig_data/` (these ARE committed and are what the plot scripts read by default).
+
+`run_all_scenarios` iterates the finished sims and drops each reference as it extracts summary rows, so parent-process RAM stays bounded even at 100+ workers. Raw sim objects are NOT pickled by default; pass `out_obj='path.obj'` explicitly if you need them, and expect the pickle to peak at ~2× the aggregate sim size.
 
 ## Scenario matrix
 
@@ -90,11 +94,15 @@ All non-`S_novax` scenarios share Nigeria's historical 2023-2025 base program (a
 
 ## Rendering all figures
 
+Plot scripts default to reading the small committed summary CSVs under `results/fig_data/`. If you have a fresh raw scenarios CSV and want to regenerate the summaries first, run `prepare_fig_data.py`.
+
 ```bash
+python prepare_fig_data.py                                   # only if raw CSV is fresh
 python plot_fig1.py                                          # analytical
-python plot_fig2.py --csv results/cycle2_scens.csv           # SQ profile
-python plot_fig3.py --csv results/cycle2_scens.csv           # screening scale-up
-python plot_fig4.py --csv results/cycle2_scens.csv           # infant vax + efficacy
+python plot_fig2.py                                          # SQ profile
+python plot_fig3.py                                          # screening scale-up
+python plot_fig4.py                                          # infant vax + efficacy
+python plot_fig5.py                                          # infant coverage × efficacy
 python plot_figS1_behavior.py                                # supp behaviour
 python plot_figS2_calibration.py                             # supp calib
 python plot_figS4_timeseries.py                              # supp timeseries

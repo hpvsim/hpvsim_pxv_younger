@@ -1,14 +1,20 @@
 """Fig 3 - screening scale-up on pre- vs post-2015 cohorts.
 
-Two-panel story about how screening scale-up (WHO 90/50 correlated
-target) redistributes cervical cancer averting across birth cohorts:
+Two-panel story about how screening scale-up (WHO 70% target, delivered
+equitably across education strata) redistributes cervical cancer averting
+across birth cohorts:
 
   A: annual new CC cases 2020-2100, four lines - pre-2015 and post-2015
      cohorts (VT cohort sum), each under status-quo screening (S_sq) and
-     under WHO screen scale-up with edu_OR=5 (S_sq_screenup_or5). Shows
+     under equitable WHO screen scale-up (S_sq_screenup_or1). Shows
      where the screening effect actually lands over time.
   B: cumulative CC cases averted by screening scale-up 2020-2125,
      split by pre-2015 vs post-2015 birth cohorts. Two bars.
+
+The edu_OR=5 variant (same aggregate coverage, but split by Nigeria's
+observed education gradient rather than equitably) is deliberately not
+plotted here — see the text for the equity-sensitivity comparison, which
+is small (see prepare_fig_data.py prep_fig3).
 
 Reads a small committed summary from ``results/fig_data/fig3_data.csv``
 by default. Regenerate that summary with ``prepare_fig_data.py``.
@@ -24,10 +30,10 @@ import utils as ut
 
 
 SCEN_SQ = 'S_sq'
-SCEN_SCALEUP = 'S_sq_screenup_or5'
+SCEN_SCALEUP = 'S_sq_screenup_or1'
 SCEN_LABELS = {
     SCEN_SQ:      'SQ screening (~15%)',
-    SCEN_SCALEUP: 'WHO screen scale-up (90/50, edu_OR=5)',
+    SCEN_SCALEUP: 'WHO screen scale-up (70/70, equitable)',
 }
 
 GROUP_LABELS = {'pre2015_group': 'Pre-2015 cohort (no vax benefit)',
@@ -110,8 +116,8 @@ def _averted_bars_panel(ax, bars):
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylabel('Cumulative CC cases averted\n'
                   'by screening scale-up (2020-2125)')
-    ax.set_title('B. Cumulative cases averted by WHO screen scale-up '
-                 '(vs SQ)')
+    ax.set_title('B. Cumulative cases averted by equitable\n'
+                 'WHO screen scale-up (vs SQ)')
     ax.set_ylim(0, max(heights) * 1.35 if max(heights) > 0 else 1)
     sc.SIticks(ax)
 

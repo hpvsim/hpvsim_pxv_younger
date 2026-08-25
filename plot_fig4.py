@@ -20,17 +20,17 @@ import sciris as sc
 import utils as ut
 
 
-SCENS = ['S_sq', 'S_sq_screenup_or5',
+SCENS = ['S_sq', 'S_sq_screenup_or1',
          'S_infant_full', 'S_infant_eff50']
 SCEN_LABELS = {
     'S_sq':              'SQ vax + SQ screening',
-    'S_sq_screenup_or5': 'SQ vax + WHO screen scale-up',
+    'S_sq_screenup_or1': 'SQ vax + WHO screen scale-up (equitable)',
     'S_infant_full':     'Infant vax 90% @ 95% eff',
     'S_infant_eff50':    'Infant vax 90% @ 50% eff',
 }
 SCEN_COLORS = {
     'S_sq':              '#e07b39',
-    'S_sq_screenup_or5': '#8b1a1a',
+    'S_sq_screenup_or1': '#8b1a1a',
     'S_infant_full':     '#1f3d5b',
     'S_infant_eff50':    '#7fb3d5',
 }

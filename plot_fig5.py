@@ -14,9 +14,9 @@ optimistic reach cited in the WHO 90-70-90 framing. Efficacy grid
 brackets the plausible effective-VE-at-exposure range under different
 waning trajectories.
 
-For reference we annotate the S_who_or5 result (adol 90/90 vax + 90/50
-screening scale-up) as the "equivalent adol strategy" line implied by
-Equation 1.
+For reference we annotate the S_who_or1 result (adol 90/90 vax + 70/70
+equitable screening scale-up) as the "equivalent adol strategy" line
+implied by Equation 1.
 
 Reads a small committed summary from ``results/fig_data/fig5_data.csv``
 by default. Regenerate that summary with ``prepare_fig_data.py``.
@@ -35,7 +35,7 @@ VE_LEVELS  = (50, 70, 95)      # percent
 VE_DESC    = (95, 70, 50)      # top-to-bottom on the heatmap
 
 BASELINE_SCEN = 'S_sq'
-REF_SCEN      = 'S_who_or5'
+REF_SCEN      = 'S_who_or1'
 DEFAULT_DATA  = 'results/fig_data/fig5_data.csv'
 
 
@@ -91,13 +91,13 @@ def plot_fig5(data_path=DEFAULT_DATA, outpath='figures/v3/fig5.png'):
              cbar_label='% averted vs status quo (S_sq)',
              title=f'B. % of VT-cohort cancers averted vs status quo\n'
                    f'(baseline: {baseline_vt/1e3:.0f}K; adol reference '
-                   f'S_who_or5: -{ref_pct:.0f}%)',
+                   f'S_who_or1: -{ref_pct:.0f}%)',
              vmin=0, vmax=100)
 
     fig.savefig(outpath, dpi=140)
     print(f'saved {outpath}')
     print(f'  baseline VT cancers (S_sq): {baseline_vt:,.0f}')
-    print(f'  adol reference (S_who_or5) VT cancers: {ref_vt:,.0f} '
+    print(f'  adol reference (S_who_or1) VT cancers: {ref_vt:,.0f} '
           f'({ref_pct:.1f}% averted vs S_sq)')
     return fig
 

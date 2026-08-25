@@ -1,13 +1,21 @@
-"""Fig 1 — analytical framing: required infant coverage + waning profile.
+"""Fig 1 — analytical framing: required infant coverage + waning mechanisms.
 
-Two panels:
+Three panels:
   Panel A: required infant vaccine coverage (VCI) as a function of infant
     vaccine efficacy (VEI), for a range of target adol coverages.
     Derived from ``VEI × VCI == VEA × VCA`` (equal cases averted).
-  Panel B: illustrative waning profiles for adol-equivalent admin efficacy
-    (95%). Flat for the first 10-15 years post-admin (per HPV vaccine
-    durability evidence), then a sharp sigmoidal decline to different
-    asymptotes.
+  Panel B: mechanism (a) — reduced initial response. Infant immune
+    immaturity caps peak efficacy below the 95% adolescent benchmark, with
+    no subsequent decay.
+  Panel C: mechanism (b) — adolescent-like response that decays. Infant
+    response starts at the 95% adolescent benchmark, holds through the
+    ~12-year evidence window (refs 8-12), then wanes before peak HPV
+    exposure (~25-35 years post-vaccination).
+
+Both mechanisms are illustrative: they converge on the same effective
+VE-at-exposure markers (50%, 70%, 95%) that are swept elsewhere in the
+paper (Fig 5), making the point that the model's single swept parameter
+is agnostic to which biological mechanism drives the reduction.
 
 Analytical — no sim runs.
 """
@@ -17,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import utils as ut
+import waning_curves as wc
 
 
 # %% Panel A — required infant coverage
@@ -50,56 +59,94 @@ def _vci_panel(ax, cmap='viridis'):
                  f'(assumes adol efficacy {VEA_ADOL}%)')
 
 
-# %% Panel B — waning profile
+# %% Panels B & C — two mechanisms for reduced infant effective VE at exposure
 
-WANING_ADMIN = 0.95
-WANING_ASYMPTOTES = [(0.90, '#2e7d32', 'slow decay → 90%'),
-                     (0.75, '#1f3d5b', 'moderate → 75%'),
-                     (0.60, '#c1981d', 'fast → 60%')]
-FLAT_YEARS = 12
-KNEE_YEARS = 15  # width of the transition; smaller = sharper knee
-
-
-def _piecewise_waning(years_since_admin, admin_p, asymptote,
-                      flat_years=FLAT_YEARS, knee_years=KNEE_YEARS):
-    """Flat at admin_p through ``flat_years``, then sharp sigmoidal
-    transition (centred flat_years + knee_years/2, k=8/knee_years)
-    to ``asymptote``."""
-    x_shift = years_since_admin - (flat_years + knee_years / 2.0)
-    k = 8.0 / max(knee_years, 1e-6)
-    logistic = 1.0 / (1.0 + np.exp(k * x_shift))
-    return asymptote + (admin_p - asymptote) * logistic
+ADOL_VE = 95  # adolescent-equivalent admin efficacy (%), matches VEA_ADOL
+SWEEP_LEVELS = [95, 70, 50]  # effective-VE-at-exposure values swept in Fig 5
+SWEEP_COLORS = {95: '#264653', 70: '#e76f51', 50: '#2a9d8f'}
+DATA_HORIZON = 12  # years of flat immunogenicity evidence (refs 8-12)
+# Peak HPV-exposure window: years since infant (age-0) vaccination that a
+# Nigerian girl reaches ages 15-25, spanning 15% to 93% cumulative sexual
+# debut (Nigeria 2024 DHS: age at first sex by 15/18/20/22/25 = 14.9/53.3/
+# 73.2/85.8/92.5%; median 17.9y). Note this window starts only ~3 years
+# after the evidence horizon ends.
+EXPOSURE_WINDOW = (15, 25)
+YEARS = np.linspace(0, 30, 400)
 
 
-def _waning_panel(ax):
-    years = np.linspace(0, 40, 400)
-    for asymp, color, label in WANING_ASYMPTOTES:
-        y = _piecewise_waning(years, WANING_ADMIN, asymp)
-        ax.plot(years, y * 100, color=color, lw=2.5, label=label)
-    ax.axvspan(0, FLAT_YEARS, alpha=0.10, color='grey', zorder=-1)
-    ax.text(FLAT_YEARS / 2, 15, 'no waning\n(evidence)',
-            fontsize=10, ha='center', color='dimgrey')
-    # Mark debut age for adol vs infant
-    for age_at_debut, label, color in [(5, 'adol debut (age 15)', '#4a9d4a'),
-                                       (15, 'infant debut (age 15)', '#a63636')]:
-        ax.axvline(age_at_debut, color=color, lw=1.2, linestyle=':', alpha=0.7)
-        ax.text(age_at_debut + 0.3, 100, label,
-                fontsize=9, color=color, rotation=90, va='top')
-    ax.set_xlim(0, 40)
-    ax.set_ylim(0, 110)
-    ax.set_xlabel('Years since vaccination')
-    ax.set_ylabel('Efficacy (%)')
-    ax.set_title(f'Waning of {int(WANING_ADMIN * 100)}% admin efficacy\n'
-                 f'(flat {FLAT_YEARS}y then decline)')
-    ax.legend(fontsize=10, loc='lower left', frameon=True)
+def _annotate_shared(ax):
+    """Shared framing for panels B and C: evidence window + exposure window."""
+    ax.axvspan(0, DATA_HORIZON, color='0.92', zorder=-2)
+    ax.text(DATA_HORIZON / 2, 103, 'evidence window\n(refs 8-12)',
+            fontsize=8.5, ha='center', va='bottom', color='dimgrey')
+    ax.axvspan(*EXPOSURE_WINDOW, color='#a63636', alpha=0.08, zorder=-2)
+    ax.text(sum(EXPOSURE_WINDOW) / 2, 103, 'peak HPV\nexposure',
+            fontsize=8.5, ha='center', va='bottom', color='#a63636')
+    ax.axvline(17.9, color='#a63636', lw=1, linestyle=':', alpha=0.6)
+    for level in (70, 50):
+        ax.axhline(level, color=SWEEP_COLORS[level], lw=0.8,
+                  linestyle=':', alpha=0.6, zorder=-1)
+    ax.set_xlim(0, 30)
+    ax.set_ylim(0, 122)
+    ax.set_yticks([0, 20, 40, 60, 80, 100])
+    ax.set_xlabel('Years since infant vaccination')
+    ax.set_ylabel('Effective VE (%)')
+
+
+def _mechanism_a_panel(ax):
+    """Mechanism (a): reduced initial response, flat thereafter — immature
+    infant immune system caps peak efficacy below the adolescent benchmark;
+    whatever level is reached does not wane."""
+    for level in SWEEP_LEVELS:
+        y = wc.flat(YEARS, level=level)
+        label = f'{level}% (adol baseline)' if level == ADOL_VE else f'{level}% (reduced response)'
+        ax.plot(YEARS, y, color=SWEEP_COLORS[level], lw=2.5, label=label)
+    _annotate_shared(ax)
+    ax.set_title('Mechanism (a): reduced initial response\n'
+                 '(lower peak efficacy, no waning)')
+    ax.legend(fontsize=9, loc='lower left', frameon=True)
+
+
+def _mechanism_b_panel(ax):
+    """Mechanism (b): same initial response as adolescents, but decays —
+    infant response starts at the adolescent benchmark, holds through the
+    evidence window, then wanes before peak exposure. Fanned over uncertain
+    onset/depth per waning_curves.s_shaped."""
+    # (onset t_mid, floor as a fraction of ADOL_VE), tuned so the fan lands
+    # near the 70% and 50% sweep levels by the exposure window (15-25y).
+    # t_mid=13 = decay starts right at the evidence horizon; t_mid=17 =
+    # a few years of grace before the bend.
+    fan = [(13, 70 / ADOL_VE), (17, 70 / ADOL_VE * 0.97),
+          (13, 50 / ADOL_VE), (17, 50 / ADOL_VE * 0.97)]
+    rate = 0.4
+    for t_mid, floor_frac in fan:
+        asymp = ADOL_VE * floor_frac
+        target = min(SWEEP_LEVELS[1:], key=lambda lv: abs(lv - asymp))
+        y = wc.s_shaped(YEARS, initial=ADOL_VE, asymptote=asymp,
+                        t_mid=t_mid, rate=rate)
+        ax.plot(YEARS, y, color=SWEEP_COLORS[target], alpha=0.65, lw=1.6)
+    # No-decay reference (== adolescent baseline)
+    ax.plot(YEARS, wc.flat(YEARS, level=ADOL_VE), color=SWEEP_COLORS[ADOL_VE],
+            lw=2.5, label=f'{ADOL_VE}% (no decay, adol baseline)')
+    _annotate_shared(ax)
+    ax.set_title('Mechanism (b): adolescent-like response that decays\n'
+                 '(flat through evidence window, wanes before exposure)')
+    handles = [plt.Line2D([], [], color=SWEEP_COLORS[ADOL_VE], lw=2.5,
+                          label=f'{ADOL_VE}% (no decay)'),
+              plt.Line2D([], [], color=SWEEP_COLORS[70], lw=1.6, alpha=0.8,
+                          label='decays toward 70%'),
+              plt.Line2D([], [], color=SWEEP_COLORS[50], lw=1.6, alpha=0.8,
+                          label='decays toward 50%')]
+    ax.legend(handles=handles, fontsize=9, loc='lower left', frameon=True)
 
 
 def plot_fig1(outpath='figures/v3/fig1.png'):
     ut.set_font(13)
-    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(16, 6),
-                                     layout='tight')
+    fig, (ax_a, ax_b, ax_c) = plt.subplots(1, 3, figsize=(21, 6),
+                                           layout='tight')
     _vci_panel(ax_a)
-    _waning_panel(ax_b)
+    _mechanism_a_panel(ax_b)
+    _mechanism_b_panel(ax_c)
     fig.savefig(outpath, dpi=140)
     print(f'saved {outpath}')
     return fig

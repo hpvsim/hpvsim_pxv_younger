@@ -1,77 +1,117 @@
 # Prophylactic HPV vaccination for infants (Nigeria)
 
-Code for analysing the impact of moving the HPV prophylactic vaccine to the infant series.
+Code for analysing the impact of moving HPV prophylactic vaccination to infant delivery in Nigeria, with a screening equity story woven in. This is the cycle-2 revision built on **HPVsim rc3.1.0** (Starsim v3.x).
 
-**Results in this repository were produced with HPVsim v2.2.6.** Plot-ready baseline CSVs from the original (v2.0.x-era, Nov 2024) analysis live in [`results/v2.0.x_published/`](results/v2.0.x_published/); working CSVs for the current version live at the top of [`results/`](results/).
+Legacy v2.0.x baselines live in [`results/v2.0.x_published/`](results/v2.0.x_published/) and legacy scripts are preserved under [`archive/`](archive/).
 
 ## Installation
 
 ```bash
-pip install hpvsim==2.2.6 seaborn optuna
+pip install -e /path/to/hpvsim   # rc3.1.0 branch
+pip install seaborn optuna
 ```
 
-Python 3.9+.
+Python 3.11+.
+
+## Repository layout
+
+```
+run_scenarios.py         9-scenario ensemble runner + intervention builders
+education.py             Education module + CancerByVaxStatus analyzer
+model.py                 Nigeria sim builder (transmission, network, demography)
+plot_common.py           Shared styling + query helpers for main figures
+plot_fig{1,2,3,4}.py     Main manuscript figures
+plot_figS{1,2,4}_*.py    Supplementary figures
+plot_table_pars.py       Parameter appendix table
+run_calibration.py       Calibration entry point
+utils.py                 Font / layout helpers
+archive/                 Superseded scripts kept for reference
+results/                 Plot-ready CSVs + calibration artifacts (tracked)
+raw_results/             Full msim/calib obj files (gitignored)
+figures/v3/              Rendered manuscript figures
+tests/                   Scenario smoke tests (pytest)
+```
 
 ## Workflow: heavy sims on VM, plots locally
 
-Each plot script has two modes: `--run-sim` runs the heavy calculation and saves lightweight CSVs in `results/`; running without flags loads the CSVs and produces the figure. The intended flow is:
+Each figure script has two modes: the heavy step (calibration or scenario ensemble) writes CSVs into `results/`; running the plot script without flags loads those CSVs and renders the PNG. Intended flow:
 
-1. **VM:** `python plot_XXX.py --run-sim` → produces CSVs
-2. Commit & push from VM
-3. **Local:** `python plot_XXX.py` → renders the figure from CSVs
+1. **VM:** heavy step → produces CSV
+2. Commit & push from VM (large binaries stay in `raw_results/`, gitignored)
+3. **Local:** `python plot_fig*.py` → renders figure from CSV
 
-Large binaries (`vs.msim`, full calibration objects, raw per-event CSVs) are gitignored — only plot-ready CSVs are committed.
+## Main figures
 
-## Running scripts
-
-| Script | Figure | Heavy step | Key artifacts |
+| Figure | Script | Story | Data |
 |---|---|---|---|
-| `plot_fig2_bars.py` | Fig 2 — cancers/deaths averted by efficacy and coverage | `run_scenarios.py` with `efficacy_scen='all'` | `fig23_scens_all.csv` |
-| `plot_fig3_ts.py` | Fig 3 — time series comparing equivalent efficacy scenarios | `run_scenarios.py` with `efficacy_scen='equiv'` | `fig23_scens_equiv.csv` |
-| `plot_figS1_behavior.py` | Fig S1 — sexual behavior | `get_sb_from_sims()` + `run_degree.py` | `model_sb_AFS.csv`, `model_sb_prop_married.csv`, `model_age_diffs.csv`, `model_casual.csv`, `partners.csv` |
-| `plot_figS2_calibration.py` | Fig S2 — calibration | Full calibration (needs many trials) | `figS2_cancers_by_age.csv`, `figS2_cin_genotype_dist.csv`, `figS2_cancerous_genotype_dist.csv` + 3 target CSVs |
-| `plot_figS3_age_pyramids.py` | Fig S3 — age pyramids over time | Baseline sim with `age_pyramid` analyzer | `figS3_model.csv`, `figS3_data.csv` |
-| `plot_fig_lines.py` | Analytical efficacy/coverage lines | — | self-contained |
+| **Fig 1** | `plot_fig1.py` | Analytical framing: required infant coverage (VCI) as a function of infant efficacy + illustrative waning profiles | Analytical, no CSV |
+| **Fig 2** | `plot_fig2.py` | Status-quo profile: ASR + vax×screen composition + annual cases by birth cohort | `results/cycle2_scens.csv` |
+| **Fig 3** | `plot_fig3.py` | Screening scale-up story: pre-2015 cohort time series + bars + VT-cohort composition | `results/cycle2_scens.csv` |
+| **Fig 4** | `plot_fig4.py` | Infant vax introduction + efficacy sensitivity: ASR + VT cohort bars | `results/cycle2_scens.csv` |
 
-## Heavy-step scripts
+## Supplementary figures
 
-- `run_sims.py`: sim-building, calibration, sexual-behavior extraction (`get_sb_from_sims`)
-- `run_scenarios.py`: full vaccination-scenario msim run; set `efficacy_scen = 'all'` or `'equiv'` at the top. Saves both `.obj` and `fig23_scens_*.csv`.
-- `run_degree.py`: casual-partner degree distribution extraction (saves `partners.csv`)
+| Figure | Script | Story | Data |
+|---|---|---|---|
+| **Fig S1** | `plot_figS1_behavior.py` | Sexual-behavior calibration inputs | Model outputs vs DHS |
+| **Fig S2** | `plot_figS2_calibration.py` | Calibration fit to Nigeria HPV / CIN / cancer targets | Trial ranges from shrunk calib |
+| **Fig S4** | `plot_figS4_timeseries.py` | HPV prevalence + ASR time series with top-N trial uncertainty | `hpv.make_calib_sims` rerun outputs |
+| **Table** | `plot_table_pars.py` | Calibrated + fixed parameter table (CSV + LaTeX) | Calibration artifacts + `model.py` |
 
-## Baseline utilities
-
-- `save_baselines.py`: one-shot extractor that re-generates plot-ready CSVs from a set of source `.obj` files (e.g. the v2.0.x snapshot).
-
-## Adding a future-version baseline (v2.3, v3.0, ...)
-
-When a new HPVsim version ships, produce a frozen baseline for comparison:
+## Running the scenario ensemble
 
 ```bash
-# 1. On VM, in a clean environment pinned to the new version
-conda create -n hpvsim230 python=3.11 -y && conda activate hpvsim230
-pip install hpvsim==2.3.0 seaborn optuna
-# 2. Regenerate the CSVs (each script mode is heavy)
-python run_scenarios.py              # set efficacy_scen='all', then 'equiv', re-run
-python plot_figS1_behavior.py --run-sim
-python plot_figS2_calibration.py --run-sim
-python plot_figS3_age_pyramids.py --run-sim
-python run_degree.py
-# 3. Freeze into a versioned baseline dir (copy, don't move — keep working copy in results/)
-mkdir -p results/v2.3.0_baseline
-cp results/*.csv results/v2.3.0_baseline/
-# 4. Commit and push the baseline alongside an updated manifest.json.
+# Fast smoke run (9 scenarios, small ensemble)
+python run_scenarios.py --n-pars 2 --n-seeds 2 --stop 2125
+
+# Production
+python run_scenarios.py --n-pars 5 --n-seeds 5 --stop 2125
 ```
 
-Compare across versions by plotting from a baseline dir via `--resfolder`, e.g.
-`python plot_figS1_behavior.py --resfolder results/v2.0.x_published` vs. the
-default `results/` (current version). For side-by-side views, write a small
-comparison script that takes `--baselines` (see the `compare_fig2.py` pattern
-in [hpvsim_india](https://github.com/hpvsim/hpvsim_india)).
+Writes `results/cycle2_scens.csv` (plot-ready long-format) + `raw_results/cycle2_scens.obj` (full msim, gitignored). All 36+ sims run in one `MultiSim` in parallel via `ss.multi_run(n_cpus=...)`.
+
+## Scenario matrix
+
+| Name | Adol vax post-2026 | Infant vax | Vax eff | Screening (lifetime cov) |
+|---|---|---|---|---|
+| `S_novax` | none | none | — | 15% |
+| `S_sq` | 60% agg, edu_OR=5 | — | 95% | 15% |
+| `S_sq_screenup_or1` | same as S_sq | — | 95% | 70/70 (equal) |
+| `S_sq_screenup_or5` | same as S_sq | — | 95% | 90/50 (correlated) |
+| `S_who_or1` | 90/90 | — | 95% | 70/70 (equal) |
+| `S_who_or5` | 90/90 | — | 95% | 90/50 (correlated) |
+| `S_infant_full` | SQ 2026-29 bridge | 90% + age-1-9 catchup 2030 | 95% | 90/50 |
+| `S_infant_eff70` | ↑ | ↑ | 70% | 90/50 |
+| `S_infant_eff50` | ↑ | ↑ | 50% | 90/50 |
+
+All non-`S_novax` scenarios share Nigeria's historical 2023-2025 base program (aggregate 27/60/60% at age 9-10 + 2023 age-10-14 catchup). Screening age window 30-50 with a 10-year rescreen gap. Treatment cascade 90% at each stage.
+
+**Screening semantics.** `hpv.routine_screening` interprets `prob` as **per-year**. To make "70%" mean "70% of women screened over their lifetime" (not "70% per year"), `make_st` converts a lifetime coverage target `C` over the 20-year age-30-50 window via `p = 1 - (1-C)^(1/N)` and hands the per-year prob to `routine_screening`. See docstrings in `run_scenarios.py::make_st` and `_annual_from_lifetime`. Without this conversion, `prob=0.9` saturates to ~100% cumulative coverage and the edu_OR contrast is invisible.
+
+## Rendering all figures
+
+```bash
+python plot_fig1.py                                          # analytical
+python plot_fig2.py --csv results/cycle2_scens.csv           # SQ profile
+python plot_fig3.py --csv results/cycle2_scens.csv           # screening scale-up
+python plot_fig4.py --csv results/cycle2_scens.csv           # infant vax + efficacy
+python plot_figS1_behavior.py                                # supp behaviour
+python plot_figS2_calibration.py                             # supp calib
+python plot_figS4_timeseries.py                              # supp timeseries
+python plot_table_pars.py                                    # supp param table
+```
+
+## Tests
+
+```bash
+python -m pytest tests/test_scenarios.py -q
+```
+
+Smoke tests every scenario builds, verifies vax coverage splits match the OR math, and checks the infant scenarios have the correct base + bridge + catchup + infant-routine structure.
 
 ## Inputs
 
-- `data/` — input data files (Nigeria cancer cases, cancer types, CIN types, HPV prevalence, age pyramid, ASR cancer, plus shared DHS files `afs_dist.csv`, `afs_median.csv`, `prop_married.csv` copied from the India repo).
+- `data/` — Nigeria cancer cases, cancer types, CIN types, HPV prevalence, age pyramid, ASR cancer, plus shared DHS files (`afs_dist.csv`, `afs_median.csv`, `prop_married.csv`) copied from the hpvsim_india repo.
 - `nigeria_age_pyramid.csv` at repo root — population pyramid data.
 
 ## Further information

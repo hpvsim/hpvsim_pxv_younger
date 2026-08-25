@@ -106,3 +106,127 @@ class EducationSnapshot(ss.Analyzer):
             ))
         self.df = pd.DataFrame(rows)
         self.df.to_csv(self.out_csv, index=False)
+
+
+COHORTS = (
+    ('pre2015',    -np.inf, 2014),
+    ('c2015_2019', 2015,    2019),
+    ('c2020_2024', 2020,    2024),
+    ('c2025_2029', 2025,    2029),
+    ('c2030_2034', 2030,    2034),
+    ('c2035_2039', 2035,    2039),
+    ('c2040_2044', 2040,    2044),
+)
+# The 6 vaccine-targetable cohorts (any child alive at 2023 base program
+# launch or after).
+VAX_TARGETABLE_COHORTS = [name for name, *_ in COHORTS if name != 'pre2015']
+
+
+class CancerByVaxStatus(ss.Analyzer):
+    """Track new cervical cancer diagnoses by vaccination × screening
+    status and by birth cohort.
+
+    Aggregates cancerous UIDs across all HPV genotype modules each
+    timestep; anything not seen before is a new case, weighted by
+    ``ppl.scale`` (matching how ``all_hpv.new_cancers`` is computed).
+
+    Emits per-timestep Results for two orthogonal groupings:
+
+    * Vax×screen status at cancer diagnosis, on any HPV intv:
+      ``new_cancers_{all,vaccinated,unvaccinated,vaxscr,vaxunscr,
+      unvaxscr,unvaxunscr}``. Aggregated across all birth cohorts.
+
+    * Birth cohort: ``new_cancers_cohort_{name}`` for 7 cohorts
+      (pre2015, c2015_2019, ..., c2040_2044). See ``COHORTS``.
+    """
+
+    STRATA = ('all', 'vaccinated', 'unvaccinated',
+              'vaxscr', 'vaxunscr', 'unvaxscr', 'unvaxunscr')
+
+    def __init__(self):
+        super().__init__()
+        self.name = 'cancer_by_vax'
+        self._seen = None
+
+    def init_results(self):
+        super().init_results()
+        results = [
+            ss.Result(f'new_cancers_{s}', dtype=float, scale=True,
+                      summarize_by='sum',
+                      label=f'New cervical cancers ({s})')
+            for s in self.STRATA
+        ] + [
+            ss.Result(f'new_cancers_cohort_{name}', dtype=float, scale=True,
+                      summarize_by='sum',
+                      label=f'New cervical cancers (cohort {name})')
+            for name, *_ in COHORTS
+        ]
+        self.define_results(*results)
+
+    def _current_cancerous(self, sim):
+        out = ss.uids()
+        for mod in sim.diseases.values():
+            arr = getattr(mod, 'cancerous', None)
+            if arr is None:
+                continue
+            out = out.union(arr.uids)
+        return out
+
+    def _ever_flag(self, sim, attr):
+        out = ss.uids()
+        for intv in sim.interventions.values():
+            v = getattr(intv, attr, None)
+            if v is None:
+                continue
+            out = out.union(v.uids)
+        return out
+
+    def _record_vaxscr(self, ti, ppl, new, vaxed, screened):
+        vax = new.intersect(vaxed)
+        novax = new.remove(vaxed)
+        vaxscr = vax.intersect(screened)
+        vaxunscr = vax.remove(screened)
+        unvaxscr = novax.intersect(screened)
+        unvaxunscr = novax.remove(screened)
+
+        def _set(key, uids):
+            if len(uids):
+                self.results[f'new_cancers_{key}'][ti] = ppl.scale_flows(uids)
+
+        _set('all', new)
+        _set('vaccinated', vax)
+        _set('unvaccinated', novax)
+        _set('vaxscr', vaxscr)
+        _set('vaxunscr', vaxunscr)
+        _set('unvaxscr', unvaxscr)
+        _set('unvaxunscr', unvaxunscr)
+
+    def _record_cohorts(self, ti, ppl, new, birth_years):
+        for name, lo, hi in COHORTS:
+            mask = (birth_years >= lo) & (birth_years <= hi)
+            if not mask.any():
+                continue
+            uids = ss.uids(np.asarray(new)[mask])
+            self.results[f'new_cancers_cohort_{name}'][ti] = ppl.scale_flows(uids)
+
+    def step(self):
+        sim = self.sim
+        current = self._current_cancerous(sim)
+        if self._seen is None:
+            self._seen = ss.uids()
+        new = current.remove(self._seen)
+        self._seen = self._seen.union(current)
+        if not len(new):
+            return
+        new = new.intersect(sim.people.female.uids)
+        if not len(new):
+            return
+        ppl = sim.people
+        ti = sim.ti
+        vaxed = self._ever_flag(sim, 'vaccinated')
+        screened = self._ever_flag(sim, 'screened')
+        self._record_vaxscr(ti, ppl, new, vaxed, screened)
+        year_now = float(sim.now.years)
+        ages = np.asarray(ppl.age[new])
+        birth_years = year_now - ages
+        self._record_cohorts(ti, ppl, new, birth_years)

@@ -35,9 +35,9 @@ We thank the reviewers for their careful and constructive comments. We revised t
 
 **R1, Comment 4**: Discussion lacks depth on feasibility, economics, and implementation barriers.
 
-**Response**: We expanded and reorganized the Discussion into five subsections covering programmatic feasibility, biological uncertainty, long-horizon demographic comparability, limitations, and conclusions. The feasibility section discusses the DTP3 coverage floor, coverage drop-off across the EPI schedule, and equity considerations for routine EPI versus school-based delivery. The biological uncertainty section covers durability, immune maturity, and single-dose sufficiency. We discuss costs briefly and qualitatively, including the cost of operating two vaccination platforms during a transition and the implications of a multi-dose infant schedule. A full cost-effectiveness analysis is outside the scope of this study, and the revised manuscript says so directly.
+**Response**: We expanded and reorganized the Discussion into five paragraphs covering programmatic feasibility, education and equity in routine EPI delivery, biological uncertainty, limitations, and conclusions. The feasibility paragraph discusses the DTP3 coverage floor and coverage drop-off across the EPI schedule. The equity paragraph compares routine EPI and school-based delivery. The biological uncertainty paragraph covers durability, immune maturity, and single-dose sufficiency. We discuss costs briefly and qualitatively, including the cost of operating two vaccination platforms during a transition and the implications of a multi-dose infant schedule. A full cost-effectiveness analysis is outside the scope of this study, and the revised manuscript says so directly.
 
-**Manuscript change**: Reorganized the Discussion into five labeled subsections and added material on feasibility, equity, implementation, and biological uncertainty.
+**Manuscript change**: Reorganized the Discussion around feasibility, equity, biological uncertainty, limitations, and conclusions, and added the material requested by R1, R2, and R4 on each of these.
 
 ---
 
@@ -163,7 +163,7 @@ We thank the reviewers for their careful and constructive comments. We revised t
 
 **R3, Intro**: Overly detailed; repetitions; "sexual initiation" vs "sexual debut"; add Nigeria population approximately 240M.
 
-**Response**: We reduced repetition in the Introduction, including condensing the description of community outreach, door-to-door campaigns, and market outreach into a single sentence. We use "sexual debut" consistently throughout and added Nigeria's population of approximately 240 million. The Introduction nevertheless increased from approximately 815 to 1,033 words because other reviewer requests required additional material, including more precise language on the durability evidence, background on Nigeria's HPV program, and the population figure. If the editors prefer a shorter Introduction, the Nigeria program background paragraph added in response to R2.6 could be moved to Methods.
+**Response**: We reduced repetition in the Introduction, including condensing the description of community outreach, door-to-door campaigns, and market outreach into a single sentence. We use "sexual debut" consistently throughout and added Nigeria's population of approximately 240 million. The Introduction is nevertheless longer than in the original submission because other reviewer requests required additional material, including more precise language on the durability evidence, background on Nigeria's HPV program, and the population figure. If the editors prefer a shorter Introduction, the Nigeria program background paragraph added in response to R2.6 could be moved to Methods.
 
 **Manuscript change**: Condensed the rollout-strategy discussion, standardized the term "sexual debut," added the population estimate, and incorporated the new durability and program-background material requested by other reviewers.
 
@@ -171,9 +171,9 @@ We thank the reviewers for their careful and constructive comments. We revised t
 
 **R3, Methods**: More detail on data/assumptions; treatment effectiveness claim; excision more effective than ablation (currently reversed in manuscript).
 
-**Response**: We corrected the treatment-effectiveness comparison. The manuscript now states that excision, the more definitive procedure, clears approximately 95% of lesions and 80% of viral infection, compared with approximately 93% and 80% for ablation. We also expanded the Methods to describe vaccination by age, the screening pathway and its simplifications, education-linked coverage differences for vaccination and screening, and the parameter table in Table S1.
+**Response**: We outline and justify our assumptions around treatment efficacy in our original methods paper (reference 15), and unfortunately do not have space to do justice to it again in this paper. However, we agree that the statement was wrong in the original submission; as per Table 1 in reference 15, we assume excision is 95% effective, i.e. more effective than ablation. We also expanded the Methods to describe vaccination by age, the screening pathway and its simplifications, education-linked coverage differences for vaccination and screening, and the parameter table in Table S1.
 
-**Manuscript change**: Corrected the excision-ablation effectiveness comparison, expanded the Methods assumptions, and added Table S1.
+**Manuscript change**: Removed the incorrect treatment-effectiveness statement, expanded the Methods assumptions, and added Table S1.
 
 ---
 
@@ -187,9 +187,9 @@ We thank the reviewers for their careful and constructive comments. We revised t
 
 **R3, Discussion**: Repeats results unnecessarily; insufficient literature engagement; implications (feasibility, ethics, programmatic).
 
-**Response**: We reorganized the Discussion around interpretation rather than a second summary of the Results. The revised subsections cover programmatic feasibility, education and equity in routine EPI delivery, biological uncertainty related to durability and immune maturity, limitations, and conclusions. The revised text also expands the discussion of feasibility and programmatic implications (see R1.4 and R2.5).
+**Response**: We reorganized the Discussion around interpretation rather than a second summary of the Results. The revised paragraphs cover programmatic feasibility, education and equity in routine EPI delivery, biological uncertainty related to durability and immune maturity, limitations, and conclusions. The revised text also expands the discussion of feasibility and programmatic implications (see R1.4 and R2.5).
 
-**Manuscript change**: Reorganized the Discussion to reduce repetition and give feasibility, equity, biological uncertainty, and limitations their own sections.
+**Manuscript change**: Reorganized the Discussion to reduce repetition and give feasibility, equity, biological uncertainty, and limitations their own paragraphs.
 
 ## Reviewer 4
 

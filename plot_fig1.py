@@ -48,15 +48,13 @@ def _vci_panel(ax, cmap='viridis'):
         # Endpoint labels
         y_end = vea_over_x = _required_vci(VEA_ADOL, vca)
         ax.text(VEA_ADOL + 1.5, y_end - 0.7,
-                f'{int(vca)}%', color=c, fontsize=9, va='center')
+                f'{int(vca)}%', color=c, fontsize=11, va='center')
     ax.axhline(100, color='dimgrey', lw=0.8, linestyle='--')
-    ax.text(5, 102, 'feasibility ceiling', fontsize=9, color='dimgrey')
     ax.set_xlim(0, VEA_ADOL + 10)
-    ax.set_ylim(0, 200)
+    ax.set_ylim(0, 100)
     ax.set_xlabel('Infant vaccine efficacy at debut (%)')
-    ax.set_ylabel('Required infant coverage (%)')
-    ax.set_title('Infant coverage needed to match adol program\n'
-                 f'(assumes adol efficacy {VEA_ADOL}%)')
+    ax.set_ylabel('Infant coverage (%)')
+    ax.set_title('Effective coverage isocurves')
 
 
 # %% Panels B & C — two mechanisms for reduced infant effective VE at exposure
@@ -77,19 +75,15 @@ YEARS = np.linspace(0, 30, 400)
 def _annotate_shared(ax):
     """Shared framing for panels B and C: evidence window + exposure window."""
     ax.axvspan(0, DATA_HORIZON, color='0.92', zorder=-2)
-    ax.text(DATA_HORIZON / 2, 103, 'evidence window\n(refs 8-12)',
-            fontsize=8.5, ha='center', va='bottom', color='dimgrey')
     ax.axvspan(*EXPOSURE_WINDOW, color='#a63636', alpha=0.08, zorder=-2)
-    ax.text(sum(EXPOSURE_WINDOW) / 2, 103, 'peak HPV\nexposure',
-            fontsize=8.5, ha='center', va='bottom', color='#a63636')
     ax.axvline(17.9, color='#a63636', lw=1, linestyle=':', alpha=0.6)
     for level in (70, 50):
         ax.axhline(level, color=SWEEP_COLORS[level], lw=0.8,
                   linestyle=':', alpha=0.6, zorder=-1)
     ax.set_xlim(0, 30)
-    ax.set_ylim(0, 122)
+    ax.set_ylim(0, 100)
     ax.set_yticks([0, 20, 40, 60, 80, 100])
-    ax.set_xlabel('Years since infant vaccination')
+    ax.set_xlabel('Years since vaccination')
     ax.set_ylabel('Effective VE (%)')
 
 
@@ -102,9 +96,8 @@ def _mechanism_a_panel(ax):
         label = f'{level}% (adol baseline)' if level == ADOL_VE else f'{level}% (reduced response)'
         ax.plot(YEARS, y, color=SWEEP_COLORS[level], lw=2.5, label=label)
     _annotate_shared(ax)
-    ax.set_title('Mechanism (a): reduced initial response\n'
-                 '(lower peak efficacy, no waning)')
-    ax.legend(fontsize=9, loc='lower left', frameon=True)
+    ax.set_title('Reduced initial response')
+    ax.legend(fontsize=8, loc='lower left', frameon=True, handlelength=1.5, labelspacing=0.3)
 
 
 def _mechanism_b_panel(ax):
@@ -129,25 +122,27 @@ def _mechanism_b_panel(ax):
     ax.plot(YEARS, wc.flat(YEARS, level=ADOL_VE), color=SWEEP_COLORS[ADOL_VE],
             lw=2.5, label=f'{ADOL_VE}% (no decay, adol baseline)')
     _annotate_shared(ax)
-    ax.set_title('Mechanism (b): adolescent-like response that decays\n'
-                 '(flat through evidence window, wanes before exposure)')
+    ax.set_title('Delayed waning profiles')
     handles = [plt.Line2D([], [], color=SWEEP_COLORS[ADOL_VE], lw=2.5,
                           label=f'{ADOL_VE}% (no decay)'),
               plt.Line2D([], [], color=SWEEP_COLORS[70], lw=1.6, alpha=0.8,
                           label='decays toward 70%'),
               plt.Line2D([], [], color=SWEEP_COLORS[50], lw=1.6, alpha=0.8,
                           label='decays toward 50%')]
-    ax.legend(handles=handles, fontsize=9, loc='lower left', frameon=True)
+    ax.legend(handles=handles, fontsize=8, loc='lower left', frameon=True, handlelength=1.5, labelspacing=0.3)
 
 
 def plot_fig1(outpath='figures/v3/fig1.png'):
-    ut.set_font(13)
-    fig, (ax_a, ax_b, ax_c) = plt.subplots(1, 3, figsize=(21, 6),
-                                           layout='tight')
+    ut.set_font(11)
+    fig = plt.figure(figsize=(6.5, 6), layout='tight')
+    gs = fig.add_gridspec(2, 2)
+    ax_a = fig.add_subplot(gs[0, :])
+    ax_b = fig.add_subplot(gs[1, 0])
+    ax_c = fig.add_subplot(gs[1, 1])
     _vci_panel(ax_a)
     _mechanism_a_panel(ax_b)
     _mechanism_b_panel(ax_c)
-    fig.savefig(outpath, dpi=140)
+    fig.savefig(outpath, dpi=300)
     print(f'saved {outpath}')
     return fig
 

@@ -20,17 +20,26 @@ import sciris as sc
 import utils as ut
 
 
-SCENS = ['S_sq', 'S_sq_screenup_or1',
+SCENS = ['S_sq', 'S_sq_screenup_or5', 'S_who_or5',
          'S_infant_full', 'S_infant_eff50']
 SCEN_LABELS = {
-    'S_sq':              'SQ vax + SQ screening',
-    'S_sq_screenup_or1': 'SQ vax + WHO screen scale-up (equitable)',
-    'S_infant_full':     'Infant vax 90% @ 95% eff',
-    'S_infant_eff50':    'Infant vax 90% @ 50% eff',
+    'S_sq':              'Status quo',
+    'S_sq_screenup_or5': 'Screening scale-up',
+    'S_who_or5':         'WHO targets',
+    'S_infant_full':     'Infant vaccination, 95% efficacy',
+    'S_infant_eff50':    'Infant vaccination, 50% efficacy',
+}
+BAR_LABELS = {
+    'S_sq':              'Status quo',
+    'S_sq_screenup_or5': 'Screening\nscale-up',
+    'S_who_or5':         'WHO\ntargets',
+    'S_infant_full':     'Infant,\n95%',
+    'S_infant_eff50':    'Infant,\n50%',
 }
 SCEN_COLORS = {
     'S_sq':              '#e07b39',
-    'S_sq_screenup_or1': '#8b1a1a',
+    'S_sq_screenup_or5': '#8b1a1a',
+    'S_who_or5':         '#4a9d4a',
     'S_infant_full':     '#1f3d5b',
     'S_infant_eff50':    '#7fb3d5',
 }
@@ -38,6 +47,7 @@ SCEN_COLORS = {
 TIMESERIES_WINDOW = (2020, 2100)
 CUMULATIVE_WINDOW = (2020, 2125)
 SMOOTH_WINDOW = 5
+ASR_ELIMINATION_TARGET = 4  # WHO cervical cancer elimination threshold (per 100,000)
 DEFAULT_DATA = 'results/fig_data/fig4_data.csv'
 
 
@@ -66,12 +76,13 @@ def _asr_panel(ax, asr, window=TIMESERIES_WINDOW,
         by_year = sub.set_index('year')['value'].sort_index()
         s = _smooth(by_year, smooth_window)
         ax.plot(s.index, s.values, color=SCEN_COLORS[name], lw=2.5,
-                label=SCEN_LABELS[name])
+                label=SCEN_LABELS[name].replace('\n', ' '))
+    ax.axhline(ASR_ELIMINATION_TARGET, color='dimgrey', lw=1, linestyle='--')
     ax.set_xlim(window); ax.set_ylim(0, None)
     ax.set_xlabel('Year')
-    ax.set_ylabel('ASR CC incidence per 100,000 (WHO 2000)')
-    ax.set_title('A. Population ASR')
-    ax.legend(fontsize=10, loc='upper right', frameon=True)
+    ax.set_ylabel('ASR cervical cancer incidence')
+    ax.set_title('A. Age-standardized incidence')
+    ax.legend(fontsize=8, loc='lower left', frameon=False)
 
 
 def _vt_bar_panel(ax, bars):
@@ -89,28 +100,27 @@ def _vt_bar_panel(ax, bars):
             continue
         pct = 100 * (baseline - h) / baseline
         ax.text(x[i], h + 0.01 * top, f'-{pct:.0f}%',
-                ha='center', va='bottom', fontsize=10)
+                ha='center', va='bottom', fontsize=9)
     ax.set_xticks(x)
-    ax.set_xticklabels([SCEN_LABELS[s].replace(' + ', '\n+ ') for s in SCENS],
-                       fontsize=9, rotation=15, ha='right')
-    ax.set_ylabel(f'Lifetime CC cases in VT cohorts\n'
-                  f'(born 2015-44, 2020-2125)')
-    ax.set_title('B. Vax-targetable cohort lifetime cancers')
+    ax.set_xticklabels([BAR_LABELS[s] for s in SCENS],
+                       fontsize=7, rotation=0, ha='center')
+    ax.set_ylabel('Lifetime cancers,\nvaccine-targetable cohorts')
+    ax.set_title('B. Vaccine-targetable cohort cancers')
     ax.set_ylim(0, heights.max() * 1.15 if heights.max() > 0 else 1)
     sc.SIticks(ax)
 
 
 def plot_fig4(data_path=DEFAULT_DATA, outpath='figures/v3/fig4.png',
               timeseries_window=TIMESERIES_WINDOW):
-    ut.set_font(13)
+    ut.set_font(11)
     d = load_data(data_path)
-    fig = plt.figure(figsize=(19, 6.5), layout='tight')
-    gs = fig.add_gridspec(1, 2, width_ratios=[1.3, 1.0])
+    fig = plt.figure(figsize=(6.8, 3.2), layout='tight')
+    gs = fig.add_gridspec(1, 2)
     ax_a = fig.add_subplot(gs[0, 0])
     ax_b = fig.add_subplot(gs[0, 1])
     _asr_panel(ax_a, d['asr'], window=timeseries_window)
     _vt_bar_panel(ax_b, d['bars'])
-    fig.savefig(outpath, dpi=140)
+    fig.savefig(outpath, dpi=300)
     print(f'saved {outpath}')
     return fig
 

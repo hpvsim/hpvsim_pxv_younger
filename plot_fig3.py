@@ -1,20 +1,23 @@
 """Fig 3 - screening scale-up on pre- vs post-2015 cohorts.
 
 Two-panel story about how screening scale-up (WHO 70% target, delivered
-equitably across education strata) redistributes cervical cancer averting
-across birth cohorts:
+with the education-correlated gap we take as our core assumption)
+redistributes cervical cancer averting across birth cohorts:
 
   A: annual new CC cases 2020-2100, four lines - pre-2015 and post-2015
      cohorts (VT cohort sum), each under status-quo screening (S_sq) and
-     under equitable WHO screen scale-up (S_sq_screenup_or1). Shows
-     where the screening effect actually lands over time.
+     under education-correlated WHO screen scale-up (S_sq_screenup_or5).
+     Shows where the screening effect actually lands over time.
   B: cumulative CC cases averted by screening scale-up 2020-2125,
      split by pre-2015 vs post-2015 birth cohorts. Two bars.
 
-The edu_OR=5 variant (same aggregate coverage, but split by Nigeria's
-observed education gradient rather than equitably) is deliberately not
-plotted here — see the text for the equity-sensitivity comparison, which
-is small (see prepare_fig_data.py prep_fig3).
+S_sq_screenup_or5 is simulated at a 90%/50% split (literally odds ratio
+~9); we use it as a stand-in for our target assumption of edu_OR ~3,
+based on Nigerian screening-by-education data (see Methods) — flagged
+for update once an exact-OR rerun is available. The fully-equitable
+variant (S_sq_screenup_or1, no education gap) is deliberately not
+plotted here — see the text for the equity comparison, which is small
+(see prepare_fig_data.py prep_fig3).
 
 Reads a small committed summary from ``results/fig_data/fig3_data.csv``
 by default. Regenerate that summary with ``prepare_fig_data.py``.
@@ -30,14 +33,14 @@ import utils as ut
 
 
 SCEN_SQ = 'S_sq'
-SCEN_SCALEUP = 'S_sq_screenup_or1'
+SCEN_SCALEUP = 'S_sq_screenup_or5'
 SCEN_LABELS = {
-    SCEN_SQ:      'SQ screening (~15%)',
-    SCEN_SCALEUP: 'WHO screen scale-up (70/70, equitable)',
+    SCEN_SQ:      'Status quo',
+    SCEN_SCALEUP: 'Screening scale-up',
 }
 
-GROUP_LABELS = {'pre2015_group': 'Pre-2015 cohort (no vax benefit)',
-                'vt_group':      'Post-2015 cohorts (vax-targetable)'}
+GROUP_LABELS = {'pre2015_group': 'Pre-2015',
+                'vt_group':      'Post-2015 (VT)'}
 GROUP_COLORS = {'pre2015_group': '#5a5a5a',
                 'vt_group':      '#1f6f7f'}
 SCEN_STYLES  = {SCEN_SQ: '-', SCEN_SCALEUP: '--'}
@@ -75,20 +78,30 @@ def _timeseries_panel(ax, ts, window=TIMESERIES_WINDOW,
             s = _smooth(by_year, smooth_window)
             ax.plot(s.index, s.values,
                     color=GROUP_COLORS[group_key],
-                    linestyle=SCEN_STYLES[scen], lw=2.4,
-                    label=f'{GROUP_LABELS[group_key]}: {SCEN_LABELS[scen]}')
+                    linestyle=SCEN_STYLES[scen], lw=2.4)
     ax.set_xlim(window); ax.set_ylim(0, None)
     ax.set_xlabel('Year')
     ax.set_ylabel('Annual new CC cases')
-    ax.set_title('A. Annual CC cases by birth-cohort group, with and '
-                 'without screening scale-up')
-    ax.legend(fontsize=9, loc='upper right', frameon=True)
+    ax.set_title('A. Annual cancers by birth cohort')
+
+    group_handles = [plt.Line2D([], [], color=GROUP_COLORS[k], lw=2.4,
+                                label=GROUP_LABELS[k]) for k in GROUP_LABELS]
+    style_handles = [plt.Line2D([], [], color='black', lw=1.8,
+                                linestyle=SCEN_STYLES[s], label=SCEN_LABELS[s])
+                     for s in (SCEN_SQ, SCEN_SCALEUP)]
+    leg1 = ax.legend(handles=group_handles, fontsize=8,
+                     loc='lower left', bbox_to_anchor=(0, 0.30),
+                     frameon=False, handlelength=1.5)
+    ax.add_artist(leg1)
+    ax.legend(handles=style_handles, fontsize=8,
+             loc='lower left', bbox_to_anchor=(0, 0.15),
+             frameon=False, handlelength=1.5)
     sc.SIticks(ax)
 
 
 def _averted_bars_panel(ax, bars):
-    groups = [('pre2015_group', 'Pre-2015 cohort'),
-              ('vt_group',      'Post-2015 cohorts (VT)')]
+    groups = [('pre2015_group', GROUP_LABELS['pre2015_group']),
+              ('vt_group',      GROUP_LABELS['vt_group'])]
     heights = []
     sq_totals = []
     labels = []
@@ -110,29 +123,27 @@ def _averted_bars_panel(ax, bars):
     for i, (avg, sq) in enumerate(zip(heights, sq_totals)):
         pct = 100 * avg / sq if sq > 0 else 0
         ax.text(x[i], avg + 0.02 * top,
-                f'-{pct:.0f}%\n({avg/1e3:,.0f}K averted\nof {sq/1e3:,.0f}K)',
-                ha='center', va='bottom', fontsize=10)
+                f'-{pct:.0f}%\n({avg/1e3:,.0f}K of {sq/1e3:,.0f}K)',
+                ha='center', va='bottom', fontsize=9)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylabel('Cumulative CC cases averted\n'
-                  'by screening scale-up (2020-2125)')
-    ax.set_title('B. Cumulative cases averted by equitable\n'
-                 'WHO screen scale-up (vs SQ)')
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel('Cancers averted')
+    ax.set_title('B. Cancers averted by\nscreening scale-up')
     ax.set_ylim(0, max(heights) * 1.35 if max(heights) > 0 else 1)
     sc.SIticks(ax)
 
 
 def plot_fig3(data_path=DEFAULT_DATA, outpath='figures/v3/fig3.png',
               timeseries_window=TIMESERIES_WINDOW):
-    ut.set_font(13)
+    ut.set_font(11)
     d = load_data(data_path)
-    fig = plt.figure(figsize=(17, 6.5), layout='tight')
-    gs = fig.add_gridspec(1, 2, width_ratios=[1.5, 0.9])
+    fig = plt.figure(figsize=(6.5, 3.2), layout='tight')
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.5, 1])
     ax_a = fig.add_subplot(gs[0, 0])
     ax_b = fig.add_subplot(gs[0, 1])
     _timeseries_panel(ax_a, d['ts'], window=timeseries_window)
     _averted_bars_panel(ax_b, d['bars'])
-    fig.savefig(outpath, dpi=140)
+    fig.savefig(outpath, dpi=300)
     print(f'saved {outpath}')
     return fig
 

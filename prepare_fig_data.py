@@ -164,17 +164,20 @@ def prep_fig2(df):
 def prep_fig3(df):
     """Fig 3 panels:
       A: annual new_cancers time series for pre-2015 vs VT cohort GROUPS,
-         under S_sq and S_sq_screenup_or1 (equitable scale-up; means)
+         under S_sq and S_sq_screenup_or5 (core scenario: education-
+         correlated screening scale-up; means)
       B: cumulative new_cancers 2020-2125 for pre-2015 vs VT cohort GROUPS,
-         under S_sq and S_sq_screenup_or1 (mean per rep -> mean across reps)
+         under S_sq and S_sq_screenup_or5 (mean per rep -> mean across reps)
 
-    S_sq_screenup_or5 (same aggregate coverage, but split by the observed
-    5-fold education gradient rather than equitably) is also summarised
-    here as a bar-only sensitivity check — not plotted in panel A/B, but
-    available for the equity-sensitivity comparison quoted in the text.
+    S_sq_screenup_or5 is simulated at a 90%/50% split (literally odds
+    ratio ~9), used here as a stand-in for our target assumption of
+    edu_OR ~3 (see Methods) pending an exact rerun — flagged for update.
+    S_sq_screenup_or1 (fully equitable, no education gap) is also
+    summarised here as a bar-only counterfactual check — not plotted in
+    panel A/B, but available for the equity comparison quoted in the text.
     """
-    headline_scens = ['S_sq', 'S_sq_screenup_or1']
-    all_scens = headline_scens + ['S_sq_screenup_or5']
+    headline_scens = ['S_sq', 'S_sq_screenup_or5']
+    all_scens = headline_scens + ['S_sq_screenup_or1']
     parts = []
     for scen in headline_scens:
         parts.append(_cohort_group_year_mean(df, scen, ['pre2015'],
@@ -193,13 +196,15 @@ def prep_fig3(df):
 
 def prep_fig4(df):
     """Fig 4 panels:
-      A: ASR by year for S_sq, S_sq_screenup_or1, S_infant_full, S_infant_eff50
-      B: cumulative CC in VT cohorts under the same four scenarios
+      A: ASR by year for S_sq, S_sq_screenup_or5, S_who_or5, S_infant_full,
+         S_infant_eff50
+      B: cumulative CC in VT cohorts under the same five scenarios
 
-    Screening scale-up here is the equitable (edu_OR=1) variant, consistent
-    with Fig 3; see prep_fig3 for the edu_OR=5 sensitivity comparison.
+    Screening scale-up and WHO scale-up here are both the education-
+    correlated (core) variant, consistent with Fig 3; see prep_fig3 for
+    the fully-equitable counterfactual comparison.
     """
-    scens = ['S_sq', 'S_sq_screenup_or1', 'S_infant_full',
+    scens = ['S_sq', 'S_sq_screenup_or5', 'S_who_or5', 'S_infant_full',
              'S_infant_eff50']
     parts = []
     parts.append(_year_stat(df, scens, 'asr_cancer_incidence',
@@ -211,11 +216,11 @@ def prep_fig4(df):
 
 def prep_fig5(df):
     """Fig 5 (heatmap): VT-cohort cumulative CC 2025-2100 for the 3x3
-    infant coverage x efficacy grid, plus S_sq baseline and S_who_or1
-    (equitable) adol-scale-up reference for annotation."""
+    infant coverage x efficacy grid, plus S_sq baseline and S_who_or5
+    (education-correlated, core) adol-scale-up reference for annotation."""
     grid_scens = [f'S_infant_c{cov:02d}_e{ve:02d}'
                   for cov in (60, 75, 90) for ve in (50, 70, 95)]
-    ref_scens = ['S_sq', 'S_who_or1']
+    ref_scens = ['S_sq', 'S_who_or5']
     return _sum_by_cohort_group(df, grid_scens + ref_scens, VT_COHORTS,
                                 'vt_group', window=(2025, 2100))
 

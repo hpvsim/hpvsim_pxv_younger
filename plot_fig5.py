@@ -14,9 +14,9 @@ optimistic reach cited in the WHO 90-70-90 framing. Efficacy grid
 brackets the plausible effective-VE-at-exposure range under different
 waning trajectories.
 
-For reference we annotate the S_who_or1 result (adol 90/90 vax + 70/70
-equitable screening scale-up) as the "equivalent adol strategy" line
-implied by Equation 1.
+For reference we annotate the S_who_or5 result (adol 90/90 vax + 90/50
+education-correlated screening scale-up, our core assumption) as the
+"equivalent adol strategy" line implied by Equation 1.
 
 Reads a small committed summary from ``results/fig_data/fig5_data.csv``
 by default. Regenerate that summary with ``prepare_fig_data.py``.
@@ -35,7 +35,7 @@ VE_LEVELS  = (50, 70, 95)      # percent
 VE_DESC    = (95, 70, 50)      # top-to-bottom on the heatmap
 
 BASELINE_SCEN = 'S_sq'
-REF_SCEN      = 'S_who_or1'
+REF_SCEN      = 'S_who_or5'
 DEFAULT_DATA  = 'results/fig_data/fig5_data.csv'
 
 
@@ -55,7 +55,7 @@ def load_data(data_path=DEFAULT_DATA):
                 baseline=baseline, ref=ref)
 
 
-def _heatmap(ax, mat, cmap, fmt, cbar_label, title,
+def _heatmap(ax, mat, cmap, fmt, title,
              vmin=None, vmax=None, text_color='black'):
     im = ax.imshow(mat, cmap=cmap, aspect='auto', origin='upper',
                    vmin=vmin, vmax=vmax)
@@ -64,40 +64,35 @@ def _heatmap(ax, mat, cmap, fmt, cbar_label, title,
     ax.set_yticks(range(len(VE_DESC)))
     ax.set_yticklabels([f'{v}%' for v in VE_DESC])
     ax.set_xlabel('Infant vaccine coverage')
-    ax.set_ylabel('Effective VE at exposure')
+    ax.set_ylabel('Effective vaccine efficacy at exposure')
     ax.set_title(title)
     for i in range(mat.shape[0]):
         for j in range(mat.shape[1]):
             ax.text(j, i, fmt.format(mat[i, j]),
-                    ha='center', va='center', color=text_color, fontsize=11)
-    plt.colorbar(im, ax=ax, label=cbar_label, shrink=0.8)
+                    ha='center', va='center', color=text_color, fontsize=10)
+    plt.colorbar(im, ax=ax, shrink=0.8)
 
 
 def plot_fig5(data_path=DEFAULT_DATA, outpath='figures/v3/fig5.png'):
-    ut.set_font(13)
+    ut.set_font(11)
     d = load_data(data_path)
     baseline_vt = d['baseline']
     ref_vt = d['ref']
     ref_pct = 100 * (baseline_vt - ref_vt) / baseline_vt if baseline_vt > 0 else 0
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6), layout='tight')
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.4), layout='tight')
 
     _heatmap(axes[0], d['abs_mat'] / 1e3, cmap='YlOrRd', fmt='{:.0f}K',
-             cbar_label='Lifetime CC cases (thousands)',
-             title='A. Lifetime CC cases in vax-targetable cohorts\n'
-                   '(born 2015-44, 2025-2100)')
+             title='A. Lifetime cancers')
 
     _heatmap(axes[1], d['pct_mat'], cmap='YlGnBu', fmt='{:.0f}%',
-             cbar_label='% averted vs status quo (S_sq)',
-             title=f'B. % of VT-cohort cancers averted vs status quo\n'
-                   f'(baseline: {baseline_vt/1e3:.0f}K; adol reference '
-                   f'S_who_or1: -{ref_pct:.0f}%)',
+             title='B. Percent averted',
              vmin=0, vmax=100)
 
-    fig.savefig(outpath, dpi=140)
+    fig.savefig(outpath, dpi=300)
     print(f'saved {outpath}')
     print(f'  baseline VT cancers (S_sq): {baseline_vt:,.0f}')
-    print(f'  adol reference (S_who_or1) VT cancers: {ref_vt:,.0f} '
+    print(f'  adol reference (S_who_or5) VT cancers: {ref_vt:,.0f} '
           f'({ref_pct:.1f}% averted vs S_sq)')
     return fig
 

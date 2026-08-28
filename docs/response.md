@@ -1,11 +1,11 @@
 # Response to reviewers
 
-**Journal**: BMC Infectious Diseases  
-**Submission ID**: 79c65988-eb04-4a81-b0ef-81ae3ffd0c9f  
-**Title**: Model-based evaluation of an infant HPV prophylactic vaccination program in Nigeria  
-**Date**: 2026-04-27
+**Journal**: BMC Infectious Diseases
+**Submission ID**: 79c65988-eb04-4a81-b0ef-81ae3ffd0c9f
+**Title**: Model-based evaluation of an infant HPV prophylactic vaccination program in Nigeria
+**Date**: 2026-08-26
 
-We thank all reviewers for their thorough and constructive comments. We have revised the manuscript substantially in response. Major changes include: a new two-mechanism waning framing in Figure 1B/C; a restructured Figure 3 examining screening scale-up by birth cohort; addition of uncertainty intervals; a parameter assumption table; an explicit base case description; a sensitivity scenario at 62% infant vaccine coverage; and numerous clarifications throughout.
+We thank all reviewers for their thorough and constructive comments, which prompted a substantial revision. Major changes include: reframing the paper around an effective-coverage requirement (rather than a forecast), replacing the scalar durability assumption with a two-mechanism effective-VE-at-exposure framing (new Figure 1B/C); restructuring the old Figure 3 into a birth-cohort decomposition of screening scale-up; explicit modeling of the education-vaccination and education-screening correlations; a switch from 9-valent to quadrivalent vaccine parameters to match Nigeria's actual supplied product; a 62% (DTP3-anchored) infant-coverage sensitivity scenario and a 3×3 coverage-by-efficacy grid (new Figure 5); a parameter table (new Table S1); uncertainty ranges (50 replicates per scenario); an explicit base-case description; and a substantially expanded, restructured Discussion.
 
 ---
 
@@ -13,57 +13,57 @@ We thank all reviewers for their thorough and constructive comments. We have rev
 
 **R1, Comment 1**: Justify the 90% infant coverage assumption.
 
-**Response**: We agree that 90% is optimistic relative to current Nigerian immunisation performance. We have added a sensitivity analysis at 62% infant coverage — the 2023 WHO/UNICEF DTP3 estimate for Nigeria — as a more empirically grounded baseline. We have also revised the framing in both the Methods and Discussion to clarify that the paper's primary contribution is the equivalency framework: characterising what infant vaccine performance (coverage × durability) would be *required* to match adolescent vaccination, rather than projecting what is achievable. The 90% scenario is retained as an upper bound to map out the full parameter space.
+**Response**: We agree that 90% is optimistic relative to current Nigerian immunization performance, and no longer treat it as the sole scenario. We added a 3×3 sensitivity grid (Figure 5) spanning infant coverage of 60%, 75%, and 90% against effective VE at exposure of 50%, 70%, and 95%; the 60% column anchors on Nigeria's 2023 DTP3 coverage (~62%), which we take as the empirical floor for what an infant program could achieve without additional platform investment. The Methods, Results, and a new Discussion subsection ("Programmatic feasibility of infant HPV delivery") now state explicitly that 90% is an aspirational upper bound, not a forecast, and quantify outcomes at the 62% floor (infant delivery averts only 20–37% of vaccine-targetable-cohort cancers at that coverage, depending on effective VE, versus 32% for continued adolescent delivery plus WHO screening scale-up at Nigeria's actual ~60% adolescent coverage).
 
-**Manuscript change**: Added 62% infant coverage as a sensitivity scenario in the analysis and results. Revised Methods and Discussion to clarify the paper's framing as a requirements analysis rather than a forecast.
+**Manuscript change**: Added 60/75/90% × 50/70/95% sensitivity grid (Figure 5); added Discussion subsection on programmatic feasibility, including EPI-schedule coverage drop-off (74% at birth to 36% by 15 months) as further context for what an infant dose could plausibly achieve depending on where in the schedule it is placed.
 
 ---
 
 **R1, Comment 2**: The "same" language in Eq 1 is misleading — it describes theoretical equivalency, not identical outcomes. Define health outcomes in Methods.
 
-**Response**: Agreed. We have replaced "same" with "achieves equivalent projected cancer burden reduction under the model" throughout. We have added a sentence in Methods explicitly defining the health outcome metric (cumulative cancers averted and cancer deaths averted, 2025–2100) and noting that Eq 1 defines a model-based equivalency boundary, not a claim that epidemiological outcomes are identical in all respects.
+**Response**: Agreed. "Same" has been replaced with "equivalent projected cervical cancer burden under the model" in the Methods text introducing Equation 1. We added an explicit sentence defining the outcome: cumulative new cervical cancer cases 2025–2100 as the primary outcome, and age-standardized incidence at 2100 as a secondary outcome.
 
-**Manuscript change**: Revised Eq 1 language; added health outcome definition to Methods.
+**Manuscript change**: Methods, "Effective coverage, equivalence, and treatment of waning" section, revised wording around Equation 1 and outcome definition.
 
 ---
 
 **R1, Comment 3**: Fig 3 adds little value; the similarity of left and right panels is mathematically predictable from Eq 1; justify or remove.
 
-**Response**: We agree the original Fig 3 added little beyond what Equation 1 already implies, and have removed it. The durability/waning question the original Fig 3 gestured at is now addressed directly in Figure 1B/C (see our response to R2, Comment 8, and R4 "Long-term protection horizon" below), which shows two mechanisms by which infant effective VE at exposure could fall short of the adolescent benchmark, without requiring an explicit sim-based waning model. In its place, the new Fig 3 answers a different, substantive question raised across several reviewer comments: how much of the residual cervical cancer burden under status-quo screening is attributable to birth cohorts too old to benefit from vaccination or screening scale-up, versus cohorts within the screening-eligible window. It decomposes annual cases by birth cohort under status-quo versus WHO-recommended screening scale-up, and reports the cumulative cases averted for the pre-2015 (vaccine-ineligible) versus post-2015 (vaccine-targetable) cohorts separately.
+**Response**: Agreed, and the original Figure 3 has been removed. The new Figure 3 answers a different question: how much of the residual cervical cancer burden under screening scale-up is attributable to the pre-2015 (vaccine-ineligible) cohort versus the vaccine-targetable cohorts, holding vaccination fixed so any difference is attributable to screening alone. This directly supports the paper's central finding that near-term burden is dominated by cohorts vaccination cannot reach. The durability question the old Figure 3 gestured at is now addressed by the two-mechanism framing in new Figure 1B/C instead.
 
-**Manuscript change**: Old Fig 3 removed. New Fig 3 added showing annual and cumulative cases averted by screening scale-up, decomposed by pre-/post-2015 birth cohort. The waning/durability question is addressed by Fig 1B/C instead (see R2.8 and R4 responses).
+**Manuscript change**: Old Figure 3 removed; new Figure 3 (annual and cumulative cancers averted by screening scale-up, decomposed by pre-/post-2015 birth cohort) added.
 
 ---
 
 **R1, Comment 4**: Discussion lacks depth on feasibility, economics, and implementation barriers.
 
-**Response**: We have expanded the Discussion to engage more directly with implementation barriers, including: (i) the gap between current DTP3 coverage and the coverage levels required for infant vaccination to match adolescent strategies; (ii) cold chain and programmatic requirements; (iii) economic considerations at a high level (noting that cost-effectiveness analysis is beyond the scope of this paper); and (iv) the single-dose evidence base and its limitations for infant schedules. We have also added citations to relevant programmatic literature.
+**Response**: The Discussion has been substantially expanded (from ~710 to ~2,000 words) and restructured into five subsections: programmatic feasibility (DTP3 coverage floor, EPI-schedule coverage drop-off, the equity comparison between routine EPI and school-based delivery), biological uncertainty (durability, immune maturity, single-dose sufficiency), long-horizon demographic comparability, limitations, and conclusions. We address economic cost only briefly and qualitatively (the cost of running two vaccination platforms in parallel during a transition, and the cost implications if a multi-dose infant schedule were needed) — a full cost-effectiveness analysis is out of scope for this paper, and we now say so explicitly rather than gesturing at costs without analysis.
 
-**Manuscript change**: Discussion expanded with ~[PLACEHOLDER: word count] words on feasibility and implementation.
+**Manuscript change**: Discussion restructured into five labeled subsections; new content added throughout on feasibility, equity, and implementation.
 
 ---
 
 **R1, Minor 1**: How is coverage distributed across ages 9–14? Describe vaccination mode; add HPV prevalence and debut distribution for Nigeria.
 
-**Response**: We have added a paragraph in Methods describing the adolescent vaccination mode: coverage is applied as a single-cohort vaccination at the target age (assumed as age 9 in the base case, consistent with the WHO recommendation for single-age cohort delivery). We have also added supplementary text reporting HPV prevalence by age group and age-at-sexual-debut distribution for Nigeria, drawn from [PLACEHOLDER: citation].
+**Response**: We added a sentence in Methods describing the vaccination mode explicitly: the adolescent program is modeled as a routine single-age cohort vaccinated at age 9 each year, at Nigeria's actual historical aggregate coverage (27%, 60%, 60% for 2023–2025), plus a one-time catch-up campaign covering ages 10–14 in the 2023 launch year (at that year's 27% coverage) — reflecting that Nigeria's 2023 rollout vaccinated girls already within the 9–14 window, not only the incoming 9-year-old cohort. From 2026 onward, only the age-9 routine continues. On Nigeria HPV prevalence and sexual debut distribution: age-specific HPV DNA prevalence is a calibration target (Methods, "Model overview") and is shown against model output in Supplementary Figure S2; the distribution of sexual debut by age is shown in Supplementary Figure S1(A) (share of females sexually active by age, model vs. DHS data), and we report the summary statistic used elsewhere in the paper (median age at first sex, 17.9 years, 2024 Nigeria DHS) directly in the Methods.
 
-**Manuscript change**: Methods paragraph added on vaccination mode; supplementary table added for Nigeria HPV/debut data.
+**Manuscript change**: Methods sentence added describing the age-9 routine + 2023 age-10–14 catch-up vaccination mode; text added cross-referencing Figures S1/S2 for HPV prevalence and debut distribution by age.
 
 ---
 
 **R1, Minor 2**: Define "high" and "lower" thresholds numerically in Results.
 
-**Response**: We have replaced qualitative descriptors with explicit numeric values throughout Results.
+**Response**: The qualitative "high"/"lower" efficacy language has been removed from Results. It is replaced by explicit numeric thresholds derived from Equation 1 and the Figure 5 grid: an infant program needs effective VE at exposure ≥63% at 90% coverage, or ≥90% at 60% coverage, to be non-inferior to Nigeria's current ~60% aggregate adolescent coverage.
 
-**Manuscript change**: "High coverage" and "lower coverage" replaced with numeric thresholds.
+**Manuscript change**: Results paragraph on infant strategy strength rewritten with explicit numeric thresholds (Results, penultimate paragraph).
 
 ---
 
 **R1, Minor 3**: Verify the "effective coverage of at least 80%" statement.
 
-**Response**: We have verified this against the model output. [PLACEHOLDER: either confirm the statement is supported and cite the specific scenario, or remove/revise it.] The manuscript has been updated accordingly.
+**Response**: We checked this against current model output and could not verify it as stated; it depended on assumptions (90% adolescent coverage, 9-valent vaccine) that no longer hold in the revised analysis. It has been removed and replaced with the verified, Eq-1-derived thresholds above (≥63% effective VE at 90% infant coverage; ≥90% at 60% coverage), each tied explicitly to a named scenario and figure. In verifying this, we also found and corrected a separate leftover inconsistency in the same Results paragraph, which referred to "Nigeria's current 85% adolescent reach" — a figure from an earlier draft assumption that is inconsistent with the 60% aggregate coverage used throughout the revised analysis; we corrected this to "60% aggregate adolescent coverage."
 
-**Manuscript change**: Statement verified and revised as needed.
+**Manuscript change**: Unverifiable claim removed; replaced with verified numeric thresholds; corrected an inconsistent "85%" figure to "60%" in the same paragraph.
 
 ---
 
@@ -71,87 +71,87 @@ We thank all reviewers for their thorough and constructive comments. We have rev
 
 **R2, Comment 1**: Citations 8–12 for durability use heterogeneous populations (18–25yo, 15–20yo, 18-month follow-up) — not directly applicable to a claim of "durable protection for at least 10 years."
 
-**Response**: We checked the reviewer's specific reading of each citation against the primary sources, and it is correct. Refs 8 (Kreimer et al.) and 9 (Tsang et al.) both come from the same Costa Rica Vaccine Trial (CVT) cohort of women vaccinated at ages 18–25 and followed for a median of 11.3 years; ref 8 reports HPV16/18 infection durability, and ref 9 — as the reviewer notes — reports cross-protection against non-vaccine types (HPV31/33/45), not HPV16/18 durability. Ref 10 (Porras et al.), also from CVT, reports the strongest endpoint of the five (HPV16/18-associated CIN2+/CIN3, i.e. precancer) at 11 years, but for the trial's three-dose recipients. Ref 11 (Basu et al., India) is the best age match to Nigeria's programme — girls aged 10–18 at enrolment, including single-dose recipients — but follows them for 9 years against a persistent-infection endpoint, with precancer assessed only as an exploratory outcome in the subset reaching age 25. Ref 12 (Barnabas et al., KEN SHE) enrolled young women aged 15–20 in Kenya and reported its primary persistent-infection endpoint at month 18. We searched for better-fitting alternatives (younger recipients, longer follow-up, cancer/precancer endpoints) and found none that materially improve on this set: no published HPV vaccine trial has enrolled anyone younger than 10, none has followed vaccinated cohorts past ~11 years, and none uses invasive cancer as an endpoint. We did find one additional study worth citing alongside 8–12: a 2025 long-term extension of the DoRIS trial in Tanzanian girls aged 9–14 (the actual age range of Nigeria's adolescent programme), showing single-dose antibody titres stable from month 12 to month 60 — the best age-matched durability data available, albeit an immunogenicity rather than efficacy/clinical endpoint, and only 5 years of follow-up. We have added this as ref 20 and rewritten the Introduction, Methods, and Discussion to state precisely what each citation does and does not show, rather than summarising them as a uniform evidence base for durable protection over a decade.
+**Response**: We checked the reviewer's reading of each citation against the primary sources and found it correct. Refs 8 (Kreimer et al.) and 9 (Tsang et al.) both come from the Costa Rica Vaccine Trial (CVT) cohort vaccinated at ages 18–25 and followed for a median of 11.3 years; ref 8 reports HPV16/18 infection durability, while ref 9 reports cross-protection against non-vaccine types (HPV31/33/45), not HPV16/18 durability. Ref 10 (Porras et al.), also CVT, reports the strongest endpoint of the five (HPV16/18-associated CIN2+/CIN3 precancer) at 11 years, for three-dose recipients. Ref 11 (Basu et al., India) is the best age match to Nigeria's program (girls 10–18 at enrollment, including single-dose recipients) but follows a persistent-infection endpoint for 9 years. Ref 12 (Barnabas et al., KEN SHE) enrolled women aged 15–20 and reported its primary persistent-infection endpoint at month 18. We searched for better-fitting alternatives and found none that improve materially on this set — no published trial has enrolled anyone younger than 10, followed a cohort past ~11 years, or used invasive cancer as an endpoint. We did add one further citation: a 2025 long-term extension of the DoRIS trial in Tanzanian girls aged 9–14 (the same age range as Nigeria's program), showing single-dose antibody titres stable from month 12 to month 60 (new ref 20) — an immunogenicity, not efficacy, endpoint, and still only 5 years of follow-up, but the closest available age match. The Introduction, Methods, and Discussion have been rewritten to state precisely what each citation does and does not show, rather than treating refs 8–12 as a uniform evidence base for 10-year cervical-cancer durability.
 
-**Manuscript change**: Introduction durability sentence (line 23) revised to specify infection/precancer endpoints in adolescent/young-adult recipients rather than "cervical cancer... for at least 10 years." Methods §2 rewritten around the two-mechanism framing in new Fig 1B/C (see R2, Comment 2 below). Discussion "Biological uncertainty" section rewritten with citation-by-citation detail on population, follow-up, and endpoint for refs 8–12, plus the new DoRIS citation (ref 20) and the 2024 Nigeria DHS (ref 19) for the exposure-timing estimate.
+**Manuscript change**: Introduction durability sentence revised to specify infection/precancer endpoints in 15–25-year-old recipients, not "cervical cancer... for at least 10 years" in girls. Methods rewritten around the effective-VE-at-exposure framing (Figure 1B/C, see R2.8). Discussion "Biological uncertainty" subsection gives citation-by-citation detail on population, follow-up, and endpoint for refs 8–12, plus the DoRIS citation (ref 20) and the 2024 Nigeria DHS (ref 19).
 
 ---
 
 **R2, Comment 2**: No parameter table — add a classical Table 1 of model assumptions.
 
-**Response**: A parameter table has been added as Table 1. It includes all key model inputs with point estimates (or ranges), prior distributions where applicable, and sources.
+**Response**: A parameter table has been added as Supplementary Table S1, listing fixed network parameters (source: 2018 Nigeria DHS) and all calibrated parameters (transmission probability, network mixing parameters, cross-immunity, and genotype-specific natural-history parameters), each with its point estimate, the range spanning the top-50 best-fitting calibration draws, units, and source.
 
-**Manuscript change**: Table 1 added.
+**Manuscript change**: Table S1 added; Methods now references it directly (previously flagged as an incomplete TODO in this draft — now resolved).
 
 ---
 
 **R2, Comment 3**: No uncertainty intervals — add and explain uncertainty analysis.
 
-**Response**: We have added uncertainty intervals to the main results. Each scenario was run with N=[PLACEHOLDER: N] random seeds; we report the median and 90% credible interval. A Methods subsection describes the uncertainty analysis. Figure 2 has been updated to display CI bands.
+**Response**: Each scenario is now run at every combination of 5 calibration parameter sets (drawn from the top of the calibration posterior) and 10 random seeds, giving 50 replicates per scenario. A new Methods subsection ("Uncertainty and reporting") describes this design; reported outcomes are the mean across replicates, with uncertainty ranges in figures spanning the 5th–95th percentile.
 
-**Manuscript change**: Methods subsection added; Fig 2 updated with uncertainty intervals; results text updated with median [CI] values.
+**Manuscript change**: Methods subsection added; Figures 2 and 4 show uncertainty bands; Results text reports point estimates against this replicate design.
 
 ---
 
 **R2, Comment 4**: No explicit base case description in Methods.
 
-**Response**: An explicit base case description has been added to Methods, specifying: adolescent vaccination at [PLACEHOLDER: coverage]% coverage with 95% VE; infant vaccination at 90% coverage with [PLACEHOLDER: VE]% VE; both with no waning in the base case.
+**Response**: The Methods ("Scenario design") now explicitly names and defines the base case: the status-quo continuation scenario (S_sq), in which adolescent vaccination continues at 60% aggregate coverage post-2026 (with the education-linked coverage gap described earlier in Methods) and screening remains at 15% opportunistic coverage. All other scenarios are compared against this base case and against a no-vaccination counterfactual.
 
-**Manuscript change**: Base case paragraph added to Methods.
+**Manuscript change**: Explicit base-case paragraph added to Methods, "Scenario design."
 
 ---
 
 **R2, Comment 5**: 90% infant coverage is ex ante optimistic; DTP3 coverage in Nigeria in 2023 was ~62%; use as baseline.
 
-**Response**: We agree that 62% is a more empirically grounded benchmark and have added it as a sensitivity scenario. However, we have retained 90% as the primary scenario in Fig 2 for two reasons: (i) the paper's central contribution is the equivalency framework, and the 90% scenario provides a clean upper-bound reference for the parameter space; (ii) coverage trajectories in Nigeria are dynamic, and DTP3 performance is not necessarily predictive of a newly introduced vaccine. The 62% sensitivity scenario is presented prominently, with explicit text noting that at this coverage level [PLACEHOLDER: result — e.g., "infant vaccination requires VE of at least X% to match adolescent vaccination at Y% coverage"].
+**Response**: We agree and have added 62% (rounded to 60% for the sensitivity grid) as the empirical floor throughout the analysis — it anchors the lowest column of the Figure 5 coverage-by-efficacy grid, and the Discussion's "Programmatic feasibility" subsection reports outcomes at this floor explicitly (20–37% of vaccine-targetable-cohort cancers averted, depending on effective VE). We retained 90% as an additional upper-bound scenario, since the paper's contribution is a requirements framework (what coverage and efficacy an infant program would need) rather than a coverage forecast, and now state this framing explicitly rather than presenting 90% as the primary or most likely scenario.
 
-**Manuscript change**: 62% coverage sensitivity added to analysis and results; Discussion revised to address coverage feasibility.
+**Manuscript change**: 62%/60% DTP3-anchored coverage built into the core sensitivity analysis (Figure 5) rather than presented as a secondary add-on; Discussion quantifies outcomes at this floor.
 
 ---
 
 **R2, Comment 6**: Add background on Nigeria HPV strategy (schedule, doses, geographic heterogeneity).
 
-**Response**: A paragraph has been added to the Introduction providing background on Nigeria's current HPV vaccination programme: [PLACEHOLDER: schedule details, dose information, geographic roll-out context, relevant citations].
+**Response**: A paragraph has been added to the Introduction: Nigeria introduced HPV vaccination through Gavi support in October 2023, using a single-dose schedule of quadrivalent vaccine (HPV16/18/6/11) targeting girls aged 9–14, via a phased rollout (initial 15-state launch in October 2023, expansion to the remaining 21 states plus the Federal Capital Territory in mid-2024), with introduction and rollout costs estimated at US$18.1 million (US$3.98 per fully-immunized girl over 5 years).
 
-**Manuscript change**: Introduction paragraph added on Nigeria HPV programme.
+**Manuscript change**: Introduction paragraph added on Nigeria's HPV program (schedule, doses, phased geographic rollout, cost).
 
 ---
 
 **R2, Comment 7**: Nigeria approved quadrivalent vaccine but the model uses 9-valent — justify.
 
-**Response**: The model uses 9-valent vaccine parameters because this represents the most effective available product and reflects the Gavi-supplied doses that Nigeria has received since [PLACEHOLDER: year]. Modelling the 9-valent vaccine also provides a more conservative estimate of the coverage required to achieve equivalency (since higher VE requires less coverage), making our conclusions conservative with respect to the policy question. A sentence to this effect has been added to Methods.
+**Response**: Rather than justify the 9-valent choice, we changed the model: all vaccination scenarios now use quadrivalent vaccine efficacy parameters (protection against HPV16/18, plus published cross-protection estimates for non-vaccine types), matching the product Nigeria actually receives through Gavi. We note in the Limitations that a switch to a 9-valent product would increase cross-protection and modestly widen the gap between vaccinated and unvaccinated cohorts, so our quadrivalent-based results are, if anything, conservative with respect to vaccination's benefit.
 
-**Manuscript change**: Justification sentence added to Methods.
+**Manuscript change**: All scenarios switched from 9-valent to quadrivalent vaccine parameters; Methods states this explicitly; Limitations notes the direction of bias this introduces relative to a 9-valent product.
 
 ---
 
 **R2, Comment 8**: Model different waning scenarios, not just scalar endpoints; change from threshold model to waning scenarios for biological plausibility.
 
-**Response**: We agree that a scalar VE assumption held fixed for life is biologically implausible for an infant vaccination programme, and have revised our approach — though not by implementing an explicit parametric waning function inside the transmission model. Instead, we note that any biological explanation for a durability shortfall — whatever its shape — reduces to a single quantity that matters for the model: the effective VE remaining at the age each cohort is exposed to HPV. New Figure 1B/C illustrates two qualitatively distinct, non-exclusive mechanisms consistent with the available evidence: (b) an adolescent-like initial response that holds flat through the ~12-year window over which current immunogenicity studies have followed vaccinated cohorts, then declines before Nigeria's exposure window opens (median age at first sex 17.9 years); or (a) a genuinely lower initial response (addressed further under R4, Immune system maturity, below). Both mechanisms are shown converging on the same illustrative effective-VE-at-exposure values — 50%, 70%, 95% — that we sweep across in the main simulations (Figure 5 and Results), rather than assuming a specific decay function or half-life. We consider this preferable to fitting an arbitrary parametric waning curve to data that cannot currently distinguish among candidate shapes (see R2, Comment 1 above): the evidence window and the exposure window are separated by only a few years, so no existing study can tell us whether, when, or how steeply efficacy declines in between.
+**Response**: We agree a scalar VE held fixed for life is biologically implausible for infant delivery, and revised our approach — though not by fitting an explicit parametric waning function. Any biological explanation for a durability shortfall reduces to one quantity that matters for cancer outcomes: the effective VE remaining at the age of HPV exposure. New Figure 1B/C illustrates two non-exclusive mechanisms consistent with the evidence: (a) a genuinely lower initial response in infants that does not itself wane, or (b) an adolescent-like initial response that holds flat through the ~12-year window current immunogenicity studies have followed vaccinated cohorts, then declines before Nigeria's exposure window opens (median age at first sex 17.9 years). Both converge on the same illustrative effective-VE-at-exposure values (50%, 70%, 95%) that we sweep in the main simulations and the Figure 5 sensitivity grid, rather than assuming a specific decay function — since the evidence window and exposure window are separated by only a few years, no existing study can distinguish among candidate decay shapes.
 
-**Manuscript change**: Methods §2 rewritten around the effective-VE-at-exposure framing and the two mechanisms; new Figure 1B/C added illustrating both. Discussion "Biological uncertainty" section revised accordingly (see also R4 responses below).
+**Manuscript change**: Methods rewritten around the effective-VE-at-exposure framing; new Figure 1B/C added; Discussion "Biological uncertainty" subsection revised accordingly.
 
 ---
 
 **R2, Comment 9**: Long-horizon predictions to 2100 — address demographic projections (Nigeria population projected to >double).
 
-**Response**: Demographic projections are incorporated in the model via Nigeria-specific age-structured population inputs and time-varying fertility and mortality rates. We do not forecast absolute incidence or burden; results are presented as averted outcomes relative to a no-vaccination counterfactual run with the same demographic inputs, so population growth affects both arms equally and does not bias the comparisons. A clarifying sentence has been added to Methods and Limitations.
+**Response**: Demographic projections are incorporated via Nigeria-specific age-structured population, fertility, and mortality inputs (UN World Population Prospects 2022), shown against model output in Supplementary Figure S3. Because the counterfactual and intervention arms share the same demographic inputs, the relative effects we report (cancers averted, percentage reductions) are robust to demographic uncertainty; absolute counts scale with the projected population. A new Discussion subsection ("Long-horizon comparability and demographic change") states this explicitly.
 
-**Manuscript change**: Clarifying sentence added to Methods; Limitations paragraph updated.
+**Manuscript change**: Discussion subsection added; Supplementary Figure S3 added showing model population structure vs. UN projections.
 
 ---
 
-**R2, Minor 10**: Why 30% adolescent coverage as a lower bound when current coverage is 85%?
+**R2, Minor 10**: Why 30% adolescent coverage when current coverage is 85%?
 
-**Response**: The 30% lower bound was chosen to represent a low-coverage scenario for sensitivity, spanning the historical range of HPV vaccine coverage in low- and middle-income countries. We have added a sentence to Methods noting this rationale and acknowledging that current national-level estimates for Nigeria are higher.
+**Response**: The arbitrary 30% low-coverage sensitivity value from the original submission has been removed entirely, along with the unsourced 85% coverage figure. The base case and all scenarios now use Nigeria's actual historical adolescent vaccination rollout (27% aggregate coverage in 2023, rising to 60% by 2024–2025), grounded in the same DTP3/HPV coverage sources cited elsewhere in the paper, rather than an assumed sensitivity bound. (We also found and corrected a separate leftover reference to "85%" in the Results section discussing infant-vs-adolescent equivalence thresholds — see our response to R1, Minor 3.)
 
-**Manuscript change**: Rationale sentence added to Methods.
+**Manuscript change**: Historical rollout coverage (27%→60%→60%) now used directly as the base case's grounding, replacing the earlier arbitrary 30% assumption; leftover "85%" figure corrected in Results.
 
 ---
 
 **R2, Minor 11**: Add brief model description sentences.
 
-**Response**: A brief model description paragraph has been added to Methods, summarising: agent-based structure, population size, time step, key disease natural history components, and the HPVsim reference.
+**Response**: A model description paragraph has been added to Methods ("Model overview and Nigeria calibration"): HPVsim v3.1.0, agent-based, Nigeria-specific demography, four HPV genotype categories (HPV16, HPV18, and two pooled high-risk groups), genotype- and age-specific progression through pre-cancer states to invasive cancer, and calibration methodology consistent with prior HPVsim applications (India, Tunisia, 30 sub-Saharan African countries).
 
 **Manuscript change**: Model description paragraph added to Methods.
 
@@ -161,7 +161,7 @@ We thank all reviewers for their thorough and constructive comments. We have rev
 
 **R3, Abstract**: Abstract should use past tense; tense inconsistency throughout manuscript.
 
-**Response**: The abstract has been rewritten in past tense. Tense inconsistencies have been corrected throughout the manuscript.
+**Response**: The abstract has been rewritten in past tense throughout. We reviewed tense usage in Methods and Results and corrected remaining inconsistencies (both sections now consistently describe completed work in past tense).
 
 **Manuscript change**: Abstract and manuscript tense revised.
 
@@ -169,33 +169,33 @@ We thank all reviewers for their thorough and constructive comments. We have rev
 
 **R3, Intro**: Overly detailed; repetitions; "sexual initiation" vs "sexual debut"; add Nigeria population ~240M.
 
-**Response**: The Introduction has been shortened by approximately [PLACEHOLDER: X]%. Repetitive sentences have been removed. "Sexual initiation" replaced with "sexual debut" throughout. Nigeria population (~240 million) added.
+**Response**: We removed the most repetitive material — in particular a paragraph describing Nigeria's complementary delivery strategies (community outreach, door-to-door campaigns, market outreach) has been condensed from several redundant sentences into one. "Sexual debut" is now used consistently (no remaining instances of "sexual initiation"). Nigeria's population (~240 million) has been added. Note that the Introduction's overall word count increased rather than decreased (from ~815 to ~1,033 words, +27%), because several reviewers (R2.1, R2.6, R3 population) required new, specific content — refined per-citation durability language, Nigeria HPV program background, and the population figure — that outweighed the repetition removed. We consider this a net improvement in information density even though raw length grew; if the editors prefer a shorter Introduction, we can move the Nigeria program background paragraph (added for R2.6) to the Methods section instead.
 
-**Manuscript change**: Introduction revised; terminology standardised; population figure added.
+**Manuscript change**: Repetitive rollout-strategy paragraph condensed; "sexual debut" used consistently; population figure added; new required content (durability precision, Nigeria program background) added in the same section.
 
 ---
 
 **R3, Methods**: More detail on data/assumptions; treatment effectiveness claim — excision more effective than ablation (currently reversed in manuscript).
 
-**Response**: The treatment effectiveness error has been corrected: excision is more effective than ablation, and the manuscript now states this correctly. Additional detail on model assumptions has been added (see also R2.2 parameter table response above).
+**Response**: The treatment-effectiveness direction has been corrected: the manuscript now states that excision — the more definitive procedure — clears ~95% of lesions and ~80% of viral infection, versus ~93% and ~80% for ablation. Additional assumption detail has been added throughout Methods (vaccination mode by age, screening pathway and its simplifications, education-linked coverage gaps for both vaccination and screening, and the parameter table, Table S1 — see R2.2).
 
-**Manuscript change**: Treatment effectiveness statement corrected; parameter table added.
+**Manuscript change**: Excision/ablation effectiveness direction corrected; Methods expanded with additional assumption detail; Table S1 added.
 
 ---
 
 **R3, Results**: Figures not self-explanatory; VCA undefined in figures.
 
-**Response**: Figure captions for Fig 1 and Fig 2 have been expanded to be self-contained. VCA is now defined in all figure captions and in the main text at first use.
+**Response**: VCA (adolescent coverage) is now defined at first use in the Methods text introducing Equation 1, and figure legends have been rewritten to be self-contained, spelling out abbreviations and scenario labels (e.g., ASR, effective VE at exposure, edu_OR, pre-2015/vaccine-targetable cohorts) at first use within each caption rather than relying on the main text.
 
-**Manuscript change**: Fig 1 and Fig 2 captions revised; VCA defined.
+**Manuscript change**: VCA defined at first use; all five main figure legends rewritten to be self-explanatory.
 
 ---
 
-**R3, Discussion**: Repetition of results; insufficient literature engagement; implications (feasibility, ethics, programmatic).
+**R3, Discussion**: Repeats results unnecessarily; insufficient literature engagement; implications (feasibility, ethics, programmatic).
 
-**Response**: Repetitive results text has been removed from the Discussion. We have added engagement with relevant literature on [PLACEHOLDER: feasibility studies, programmatic lessons from other infant vaccine programmes, ethical considerations around long-horizon uncertainty]. Programmatic and feasibility implications are now addressed explicitly (see also R1.4 response).
+**Response**: The Discussion has been restructured into five labeled subsections (programmatic feasibility, biological uncertainty, long-horizon demographic change, limitations, conclusions) specifically to separate interpretation from restating results, and results are no longer repeated verbatim. Feasibility and programmatic implications are now discussed in detail (see R1.4, R2.5). One item remains open: the Discussion's opening paragraph states that our findings "extend previous modeling work on infant HPV delivery ([refs])," and this citation is currently an unfilled placeholder in the manuscript — we did not want to fabricate citations to prior infant/toddler HPV vaccination modeling studies without the corresponding literature search being done properly. **This is flagged to the authors as an outstanding item to resolve before resubmission** (see our covering note).
 
-**Manuscript change**: Discussion revised.
+**Manuscript change**: Discussion restructured into five subsections with reduced repetition; feasibility/programmatic content added throughout. Outstanding: literature-comparison citation in the Discussion's opening paragraph still needs to be filled in with genuine references.
 
 ---
 
@@ -203,23 +203,23 @@ We thank all reviewers for their thorough and constructive comments. We have rev
 
 **R4, Abstract**: Tighten results section.
 
-**Response**: The abstract results section has been condensed to the two most policy-relevant findings.
+**Response**: The abstract's Results paragraph has been condensed to three headline, policy-relevant findings: the residual burden in the pre-2015 cohort, the effect of screening scale-up, and the infant-vs-adolescent-scale-up comparison at high and low effective VE.
 
-**Manuscript change**: Abstract revised.
+**Manuscript change**: Abstract Results paragraph condensed and rewritten.
 
 ---
 
-**R4, STI framing**: More careful, avoid stigmatising language.
+**R4, STI framing**: More careful, avoid stigmatizing language.
 
-**Response**: The manuscript has been reviewed for stigmatising language. [PLACEHOLDER: list specific changes — e.g., removed "promiscuity," revised X sentence.] We have followed the framework recommended by [PLACEHOLDER: citation if applicable].
+**Response**: We reviewed the manuscript's framing of HPV as an STI. The two remaining references to "STI" are both used carefully and in service of explaining vaccine hesitancy as a documented phenomenon (citing McKenzie et al. on parental stigmatizing beliefs), rather than the manuscript itself using stigmatizing framing; we did not find language elsewhere that mischaracterizes HPV or oversimplifies its transmission. We consider this addressed, but remain open to further specific edits if the reviewer had particular sentences in mind beyond the general framing concern.
 
-**Manuscript change**: Language revised throughout.
+**Manuscript change**: Reviewed; framing retained but contextualized around documented stigma/hesitancy evidence rather than removed, since the point being made (stigma drives hesitancy) is itself an argument in the paper's motivation.
 
 ---
 
 **R4, Intro/discussion structure**: Intro too long; discussion repetitive.
 
-**Response**: Addressed; see R3 intro and discussion responses above.
+**Response**: Addressed; see R3 Intro and R3 Discussion responses above.
 
 **Manuscript change**: See above.
 
@@ -227,30 +227,36 @@ We thank all reviewers for their thorough and constructive comments. We have rev
 
 **R4, Immune system maturity**: Does existing adolescent/young-adult VE evidence apply to infants?
 
-**Response**: We agree this is a distinct question from durability per se, and we now treat it as its own mechanism in the revised Figure 1B/C framing, separate from the durability question the reviewer also raises below. On the evidence: none of the durability citations (8–12) enrolled anyone younger than 10 (the youngest, ref 11, enrolled girls 10–18), so none speaks directly to infant immune response, and we could not find any published HPV vaccine immunogenicity or efficacy data in children younger than 9 — the vaccine is not licensed below that age, and the youngest ongoing immunogenicity trial we identified (ClinicalTrials.gov, ages 4–8) has not yet reported results. Within the licensed age range there is a documented trend of higher antibody titres in children vaccinated younger (e.g. 5-year titres higher among those vaccinated at younger ages within 9–15-year-olds), which is at least consistent with infants mounting a strong response, but this trend has never been tested below age 9 and cannot be extrapolated across it with confidence, given well-described qualitative differences in infant immunology (e.g. maternal antibody interference, which is why several routine infant vaccines are deliberately timed after the first year of life). We have rewritten the Discussion to state this precisely: there is no empirical basis to conclude infant response will be weaker, no basis to conclude it will be stronger or equal, and our efficacy sensitivity (50–95% effective VE at exposure) is our accommodation of this uncertainty rather than a resolution of it. We have also corrected an inaccuracy in our own prior draft, which described the cited durability evidence as coming from "9–14-year-old girls" — refs 8–10 and 12 in fact enrolled participants aged 15–25; ref 11 (10–18) is the only one that overlaps Nigeria's 9–14 target age. We removed the previous response's reference to a "waning analysis (new Fig 3)" — that figure does not exist in the current manuscript. The relevant analysis is Figure 1B/C (two mechanisms — reduced initial response, and adolescent-like response that decays) together with the effective-VE-at-exposure sweep reported throughout Results and Figure 5.
+**Response**: We now treat this as a distinct mechanism (Figure 1B/C, mechanism (a): a genuinely lower initial response that does not itself wane), separate from the durability question (mechanism (b)). No HPV vaccine trial has enrolled anyone younger than 10, and we found no published immunogenicity or efficacy data in children under 9 (the youngest identified ongoing trial, ages 4–8, has not yet reported results). We also corrected an inaccuracy from our own prior draft, which had described the durability citations (refs 8–12) as "9–14-year-old girls"; in fact refs 8–10 and 12 enrolled participants aged 15–25, and only ref 11 (10–18) overlaps Nigeria's 9–14 target age. The Discussion states plainly that there is no empirical basis to conclude infant response will be weaker, stronger, or equal to the adolescent benchmark, and that our efficacy sensitivity (50–95%) accommodates this uncertainty rather than resolving it.
 
-**Manuscript change**: Discussion "Biological uncertainty" section restructured to separate the durability question (Figure 1B/C mechanism b) from the immune-maturity question (mechanism a), with citation-level precision on what evidence does and does not exist for each, and correcting the prior draft's inaccurate age description of refs 8–12.
+**Manuscript change**: Discussion "Biological uncertainty" subsection separates the immune-maturity question (mechanism a) from durability (mechanism b), with citation-level precision on ages enrolled in refs 8–12; corrected age-range inaccuracy in the prior draft.
 
 ---
 
 **R4, Single-dose sufficiency for infants**: Any empirical/immunological support?
 
-**Response**: We have added a sentence in Methods noting that single-dose efficacy for infant vaccination is an assumption based on the single-dose immunogenicity literature [PLACEHOLDER: cite relevant studies, e.g., Barnabas et al. or equivalent], and acknowledged in the Discussion that direct evidence for infant single-dose schedules is limited.
+**Response**: The Discussion now states explicitly that single-dose sufficiency has been demonstrated in adolescent and young-adult recipients (refs 11, 12, 17) but has not been tested in infants, and notes that a multi-dose infant schedule — should one prove necessary — would raise per-fully-immunized-child costs and could reduce attainable coverage, a consideration we flag but do not model.
 
-**Manuscript change**: Methods sentence added; Discussion acknowledgement added.
+**Manuscript change**: Discussion sentence added on single-dose evidence base and its limits for infant schedules; cost/coverage implication of a hypothetical multi-dose schedule noted.
 
 ---
 
 **R4, 90% coverage feasibility**: Needs more discussion.
 
-**Response**: Addressed above (R1.1, R2.5). The 62% sensitivity scenario and revised Discussion framing address this directly.
+**Response**: Addressed above; see R1.1 and R2.5. The Discussion's "Programmatic feasibility" subsection frames 90% explicitly as an aspirational target rather than a forecast, and quantifies outcomes at the 62%/60% DTP3-anchored floor instead.
 
-**Manuscript change**: See R1.1 and R2.5 responses.
+**Manuscript change**: See R1.1, R2.5.
 
 ---
 
-**R4, Long-term protection horizon**: Long-term studies show <12 year follow-up; infant vaccination needs 25–35 years protection before and through peak exposure — address temporal gap.
+**R4, Long-term protection horizon**: Long-term studies show <12-year follow-up; infant vaccination needs a much longer protection horizon — address the temporal gap.
 
-**Response**: This is the central biological uncertainty motivating the revised Figure 1B/C. We also revisited the temporal gap itself: our original estimate of a 25–35 year interval between infant vaccination and peak HPV exposure was not sourced, and we have replaced it with an estimate grounded in Nigeria's 2024 Demographic and Health Survey, which reports a median age at first sex of 17.9 years. Taking sexual debut as the start of substantial exposure risk, and allowing several further years for exposure risk to build toward its peak, the relevant interval for Nigeria is closer to ~15–25 years post-vaccination — still well beyond the ~12-year follow-up horizon of the durability literature (refs 8–12), but narrower, and more precisely sourced, than our original estimate. Figure 1B/C translates this gap into projected outcomes without assuming a specific durability model: it shows two mechanisms (reduced initial response versus adolescent-like response that decays) that would produce the same effective-VE-at-exposure shortfall, and we sweep this quantity directly (50%, 70%, 95%) rather than committing to a decay function. We argue that this framing — characterising the *required* effective efficacy rather than assuming a particular waning trajectory — is the appropriate response to this evidence gap for a modelling paper.
+**Response**: This motivated the Figure 1B/C two-mechanism framing (see R2.8). We also corrected the temporal-gap estimate itself: our original ~25–35 year interval between infant vaccination and peak HPV exposure was unsourced. We replaced it with an estimate grounded in Nigeria's 2024 Demographic and Health Survey (median age at first sex, 17.9 years; new ref 19), giving a sourced interval of ~15–25 years — narrower than our original estimate, but still well beyond the ~11–12-year follow-up horizon of the durability literature (refs 8–12).
 
-**Manuscript change**: Exposure-window estimate corrected from an unsourced ~25–35 years to ~15–25 years, using 2024 Nigeria DHS data (new ref 19). Discussion paragraph revised on the durability gap; Figure 1B/C added (see R2.8 response above).
+**Manuscript change**: Exposure-window estimate corrected from an unsourced ~25–35 years to a DHS-sourced ~15–25 years (new ref 19); Discussion paragraph revised accordingly.
+
+---
+
+## Outstanding item
+
+One placeholder remains unresolved in the manuscript text: the Discussion's opening paragraph cites "previous modeling work on infant HPV delivery ([refs])" without specific citations. Filling this in requires a literature search for genuine prior infant/toddler HPV vaccination modeling studies (as distinct from the adolescent-catch-up modeling literature already cited, refs 6–7) — we did not want to insert placeholder or fabricated citations into either the manuscript or this response. We recommend resolving this (either via a targeted literature search or author knowledge of specific prior studies) before resubmission, since it is the one point in R3's and R1's comments not yet fully closed out.

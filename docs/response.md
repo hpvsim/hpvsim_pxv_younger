@@ -5,7 +5,7 @@
 **Title**: Model-based evaluation of an infant HPV prophylactic vaccination program in Nigeria
 **Date**: 2026-08-26
 
-We thank all reviewers for their thorough and constructive comments, which prompted a substantial revision. Major changes include: reframing the paper around an effective-coverage requirement (rather than a forecast), replacing the scalar durability assumption with a two-mechanism effective-VE-at-exposure framing (new Figure 1B/C); restructuring the old Figure 3 into a birth-cohort decomposition of screening scale-up; explicit modeling of the education-vaccination and education-screening correlations; a switch from 9-valent to quadrivalent vaccine parameters to match Nigeria's actual supplied product; a 62% (DTP3-anchored) infant-coverage sensitivity scenario and a 3×3 coverage-by-efficacy grid (new Figure 5); a parameter table (new Table S1); uncertainty ranges (50 replicates per scenario); an explicit base-case description; and a substantially expanded, restructured Discussion.
+We thank all reviewers for their thorough and constructive comments, which prompted a substantial revision. Major changes include: reframing the paper around an effective-coverage requirement (rather than a forecast), replacing the scalar durability assumption with a two-mechanism effective-VE-at-exposure framing (new Figure 1B/C); restructuring the old Figure 3 into a birth-cohort decomposition of screening scale-up; explicit modeling of the education-vaccination (odds ratio 5) and education-screening (odds ratio 3, calibrated to a Nigerian population-based screening study) correlations; a switch from 9-valent to quadrivalent vaccine parameters to match Nigeria's actual supplied product; a 62% (DTP3-anchored) infant-coverage sensitivity scenario and a 3×3 coverage-by-efficacy grid (new Figure 5); a parameter table (new Table S1); uncertainty ranges (50 replicates per scenario: 10 calibration draws × 5 seeds, reported as median and interquartile range); an explicit base-case description; and a substantially expanded, restructured Discussion.
 
 ---
 
@@ -13,7 +13,7 @@ We thank all reviewers for their thorough and constructive comments, which promp
 
 **R1, Comment 1**: Justify the 90% infant coverage assumption.
 
-**Response**: We agree that 90% is optimistic relative to current Nigerian immunization performance, and no longer treat it as the sole scenario. We added a 3×3 sensitivity grid (Figure 5) spanning infant coverage of 60%, 75%, and 90% against effective VE at exposure of 50%, 70%, and 95%; the 60% column anchors on Nigeria's 2023 DTP3 coverage (~62%), which we take as the empirical floor for what an infant program could achieve without additional platform investment. The Methods, Results, and a new Discussion subsection ("Programmatic feasibility of infant HPV delivery") now state explicitly that 90% is an aspirational upper bound, not a forecast, and quantify outcomes at the 62% floor (infant delivery averts only 20–37% of vaccine-targetable-cohort cancers at that coverage, depending on effective VE, versus 32% for continued adolescent delivery plus WHO screening scale-up at Nigeria's actual ~60% adolescent coverage).
+**Response**: We agree that 90% is optimistic relative to current Nigerian immunization performance, and no longer treat it as the sole scenario. We added a 3×3 sensitivity grid (Figure 5) spanning infant coverage of 60%, 75%, and 90% against effective VE at exposure of 50%, 70%, and 95%; the 60% column anchors on Nigeria's 2023 DTP3 coverage (~62%), which we take as the empirical floor for what an infant program could achieve without additional platform investment. The Methods, Results, and a new Discussion subsection ("Programmatic feasibility of infant HPV delivery") now state explicitly that 90% is an aspirational upper bound, not a forecast, and quantify outcomes at the 62% floor (infant delivery averts only 15–35% of vaccine-targetable-cohort cancers at that coverage, depending on effective VE, versus 31% for continued adolescent delivery plus WHO screening scale-up at Nigeria's actual ~60% adolescent coverage).
 
 **Manuscript change**: Added 60/75/90% × 50/70/95% sensitivity grid (Figure 5); added Discussion subsection on programmatic feasibility, including EPI-schedule coverage drop-off (74% at birth to 36% by 15 months) as further context for what an infant dose could plausibly achieve depending on where in the schedule it is placed.
 
@@ -87,15 +87,15 @@ We thank all reviewers for their thorough and constructive comments, which promp
 
 **R2, Comment 3**: No uncertainty intervals — add and explain uncertainty analysis.
 
-**Response**: Each scenario is now run at every combination of 5 calibration parameter sets (drawn from the top of the calibration posterior) and 10 random seeds, giving 50 replicates per scenario. A new Methods subsection ("Uncertainty and reporting") describes this design; reported outcomes are the mean across replicates, with uncertainty ranges in figures spanning the 5th–95th percentile.
+**Response**: Each scenario is now run at every combination of 10 calibration parameter sets (drawn from the top of the calibration posterior) and 5 random seeds, giving 50 replicates per scenario. A new Methods subsection ("Uncertainty and reporting") describes this design; reported outcomes are the median across replicates, with uncertainty ranges in figures and in Results text spanning the interquartile range (25th–75th percentile).
 
-**Manuscript change**: Methods subsection added; Figures 2 and 4 show uncertainty bands; Results text reports point estimates against this replicate design.
+**Manuscript change**: Methods subsection added; Figures 2, 3, 4, and 5 all show uncertainty (IQR bands on time-series panels, IQR whiskers on bar totals and paired-difference averted bars, per-cell IQR ranges on the Figure 5 heatmap); Results text reports median point estimates and IQR ranges against this replicate design.
 
 ---
 
 **R2, Comment 4**: No explicit base case description in Methods.
 
-**Response**: The Methods ("Scenario design") now explicitly names and defines the base case: the status-quo continuation scenario (S_sq), in which adolescent vaccination continues at 60% aggregate coverage post-2026 (with the education-linked coverage gap described earlier in Methods) and screening remains at 15% opportunistic coverage. All other scenarios are compared against this base case and against a no-vaccination counterfactual.
+**Response**: The Methods ("Scenario design") now explicitly names and defines the base case: the status-quo continuation scenario, in which adolescent vaccination continues at 60% aggregate coverage post-2026 (with the education-linked coverage gap described earlier in Methods) and screening remains at 15% opportunistic coverage. All other scenarios are compared against this base case and against a no-vaccination counterfactual.
 
 **Manuscript change**: Explicit base-case paragraph added to Methods, "Scenario design."
 
@@ -103,7 +103,7 @@ We thank all reviewers for their thorough and constructive comments, which promp
 
 **R2, Comment 5**: 90% infant coverage is ex ante optimistic; DTP3 coverage in Nigeria in 2023 was ~62%; use as baseline.
 
-**Response**: We agree and have added 62% (rounded to 60% for the sensitivity grid) as the empirical floor throughout the analysis — it anchors the lowest column of the Figure 5 coverage-by-efficacy grid, and the Discussion's "Programmatic feasibility" subsection reports outcomes at this floor explicitly (20–37% of vaccine-targetable-cohort cancers averted, depending on effective VE). We retained 90% as an additional upper-bound scenario, since the paper's contribution is a requirements framework (what coverage and efficacy an infant program would need) rather than a coverage forecast, and now state this framing explicitly rather than presenting 90% as the primary or most likely scenario.
+**Response**: We agree and have added 62% (rounded to 60% for the sensitivity grid) as the empirical floor throughout the analysis — it anchors the lowest column of the Figure 5 coverage-by-efficacy grid, and the Discussion's "Programmatic feasibility" subsection reports outcomes at this floor explicitly (15–35% of vaccine-targetable-cohort cancers averted, depending on effective VE). We retained 90% as an additional upper-bound scenario, since the paper's contribution is a requirements framework (what coverage and efficacy an infant program would need) rather than a coverage forecast, and now state this framing explicitly rather than presenting 90% as the primary or most likely scenario.
 
 **Manuscript change**: 62%/60% DTP3-anchored coverage built into the core sensitivity analysis (Figure 5) rather than presented as a secondary add-on; Discussion quantifies outcomes at this floor.
 
@@ -193,9 +193,9 @@ We thank all reviewers for their thorough and constructive comments, which promp
 
 **R3, Discussion**: Repeats results unnecessarily; insufficient literature engagement; implications (feasibility, ethics, programmatic).
 
-**Response**: The Discussion has been restructured into five labeled subsections (programmatic feasibility, biological uncertainty, long-horizon demographic change, limitations, conclusions) specifically to separate interpretation from restating results, and results are no longer repeated verbatim. Feasibility and programmatic implications are now discussed in detail (see R1.4, R2.5). One item remains open: the Discussion's opening paragraph states that our findings "extend previous modeling work on infant HPV delivery ([refs])," and this citation is currently an unfilled placeholder in the manuscript — we did not want to fabricate citations to prior infant/toddler HPV vaccination modeling studies without the corresponding literature search being done properly. **This is flagged to the authors as an outstanding item to resolve before resubmission** (see our covering note).
+**Response**: The Discussion has been restructured into five thematic subsections (programmatic feasibility, education/equity of routine EPI delivery, biological uncertainty of durability and immune maturity, limitations, and conclusions) specifically to separate interpretation from restating results, and results are no longer repeated verbatim. Feasibility and programmatic implications are now discussed in detail (see R1.4, R2.5).
 
-**Manuscript change**: Discussion restructured into five subsections with reduced repetition; feasibility/programmatic content added throughout. Outstanding: literature-comparison citation in the Discussion's opening paragraph still needs to be filled in with genuine references.
+**Manuscript change**: Discussion restructured with reduced repetition; feasibility, equity, biological uncertainty, and limitations each discussed in a dedicated paragraph.
 
 ---
 
@@ -255,8 +255,3 @@ We thank all reviewers for their thorough and constructive comments, which promp
 
 **Manuscript change**: Exposure-window estimate corrected from an unsourced ~25–35 years to a DHS-sourced ~15–25 years (new ref 19); Discussion paragraph revised accordingly.
 
----
-
-## Outstanding item
-
-One placeholder remains unresolved in the manuscript text: the Discussion's opening paragraph cites "previous modeling work on infant HPV delivery ([refs])" without specific citations. Filling this in requires a literature search for genuine prior infant/toddler HPV vaccination modeling studies (as distinct from the adolescent-catch-up modeling literature already cited, refs 6–7) — we did not want to insert placeholder or fabricated citations into either the manuscript or this response. We recommend resolving this (either via a targeted literature search or author knowledge of specific prior studies) before resubmission, since it is the one point in R3's and R1's comments not yet fully closed out.

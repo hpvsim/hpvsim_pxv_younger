@@ -29,9 +29,26 @@ VAXSCR_STRATA = ['unvaxunscr', 'unvaxscr', 'vaxunscr', 'vaxscr']
 DEFAULT_RAW = 'raw_results/scenarios.csv'
 DEFAULT_OUT = 'results/fig_data'
 
+# Uncertainty summary across par x seed replicates: median + IQR (q25, q75).
+# Downstream plot scripts read these three stat labels to draw bands / whiskers.
+DEFAULT_STATS = ('median', 'q25', 'q75')
+
+
+def _apply_stat(grouped, stat):
+    """Dispatch a stat label to the corresponding pandas GroupBy call."""
+    if stat == 'median':
+        return grouped.median()
+    if stat == 'q25':
+        return grouped.quantile(0.25)
+    if stat == 'q75':
+        return grouped.quantile(0.75)
+    if stat == 'mean':
+        return grouped.mean()
+    return grouped.agg(stat)
+
 
 def _year_stat(df, scenarios, metric, cohort='whole', stratum='all',
-               years=None, stats=('median', 'min', 'max')):
+               years=None, stats=DEFAULT_STATS):
     """Per-year aggregate (across par x seed) for a metric.
 
     Returns rows with (scenario, year, metric, stratum, cohort, stat, value).
@@ -47,7 +64,7 @@ def _year_stat(df, scenarios, metric, cohort='whole', stratum='all',
     grp = sub.groupby(['scenario', 'year'])['value']
     rows = []
     for stat in stats:
-        agg = grp.agg(stat).reset_index()
+        agg = _apply_stat(grp, stat).reset_index()
         agg['metric'] = metric
         agg['stratum'] = stratum
         agg['cohort'] = cohort
@@ -56,9 +73,25 @@ def _year_stat(df, scenarios, metric, cohort='whole', stratum='all',
     return pd.concat(rows, ignore_index=True)
 
 
+def _emit_stats(per_rep, groupby_cols, stat_cols, stats=DEFAULT_STATS):
+    """Given a per-replicate Series indexed by groupby_cols + (par_idx, seed),
+    aggregate across (par_idx, seed) into one row per stat per group.
+    ``stat_cols`` is a dict of extra columns to attach on each row.
+    """
+    grp = per_rep.groupby(list(groupby_cols))
+    rows = []
+    for stat in stats:
+        agg = _apply_stat(grp, stat).reset_index()
+        for k, v in stat_cols.items():
+            agg[k] = v
+        agg['stat'] = stat
+        rows.append(agg)
+    return pd.concat(rows, ignore_index=True)
+
+
 def _sum_by(df, scenarios, cohort, stratum, window):
-    """Sum ``new_cancers`` per replicate for each scenario, then mean
-    across replicates. Returns one row per scenario."""
+    """Sum ``new_cancers`` per replicate, then aggregate across replicates
+    into (median, q25, q75) per scenario."""
     lo, hi = window
     m = ((df['metric'] == 'new_cancers') & (df['scenario'].isin(scenarios))
          & (df['cohort'] == cohort) & (df['stratum'] == stratum)
@@ -67,19 +100,16 @@ def _sum_by(df, scenarios, cohort, stratum, window):
     if sub.empty:
         return pd.DataFrame()
     per_rep = sub.groupby(['scenario', 'par_idx', 'seed'])['value'].sum()
-    means = per_rep.groupby('scenario').mean().reset_index()
-    means['metric'] = 'new_cancers'
-    means['stratum'] = stratum
-    means['cohort'] = cohort
-    means['stat'] = 'mean'
-    means['year'] = f'{lo}_{hi}'
-    return means[['scenario', 'year', 'metric', 'stratum', 'cohort',
-                  'stat', 'value']]
+    out = _emit_stats(per_rep, ['scenario'],
+                      {'metric': 'new_cancers', 'stratum': stratum,
+                       'cohort': cohort, 'year': f'{lo}_{hi}'})
+    return out[['scenario', 'year', 'metric', 'stratum', 'cohort',
+                'stat', 'value']]
 
 
 def _sum_by_cohort_group(df, scenarios, cohort_list, group_label, window):
-    """Sum ``new_cancers`` across a cohort GROUP (e.g. pre-2015 vs VT
-    cohorts), per replicate, then mean across replicates."""
+    """Sum ``new_cancers`` across a cohort GROUP per replicate, then aggregate
+    across replicates into (median, q25, q75) per scenario."""
     lo, hi = window
     m = ((df['metric'] == 'new_cancers') & (df['scenario'].isin(scenarios))
          & (df['cohort'].isin(cohort_list)) & (df['stratum'] == 'all')
@@ -88,18 +118,16 @@ def _sum_by_cohort_group(df, scenarios, cohort_list, group_label, window):
     if sub.empty:
         return pd.DataFrame()
     per_rep = sub.groupby(['scenario', 'par_idx', 'seed'])['value'].sum()
-    means = per_rep.groupby('scenario').mean().reset_index()
-    means['metric'] = 'new_cancers'
-    means['stratum'] = 'all'
-    means['cohort'] = group_label
-    means['stat'] = 'mean'
-    means['year'] = f'{lo}_{hi}'
-    return means[['scenario', 'year', 'metric', 'stratum', 'cohort',
-                  'stat', 'value']]
+    out = _emit_stats(per_rep, ['scenario'],
+                      {'metric': 'new_cancers', 'stratum': 'all',
+                       'cohort': group_label, 'year': f'{lo}_{hi}'})
+    return out[['scenario', 'year', 'metric', 'stratum', 'cohort',
+                'stat', 'value']]
 
 
 def _cohort_year_mean(df, scenario, cohorts, window):
-    """Mean annual new_cancers by (cohort, year) under one scenario."""
+    """Per-replicate annual new_cancers by (cohort, year), then aggregate
+    across replicates into (median, q25, q75)."""
     lo, hi = window
     m = ((df['metric'] == 'new_cancers') & (df['scenario'] == scenario)
          & (df['stratum'] == 'all') & (df['cohort'].isin(cohorts))
@@ -107,21 +135,56 @@ def _cohort_year_mean(df, scenario, cohorts, window):
     sub = df[m]
     if sub.empty:
         return pd.DataFrame()
-    means = (sub.groupby(['cohort', 'year', 'par_idx', 'seed'])['value']
-                .sum()
-                .groupby(level=['cohort', 'year']).mean()
-                .reset_index())
-    means['scenario'] = scenario
-    means['metric'] = 'new_cancers'
-    means['stratum'] = 'all'
-    means['stat'] = 'mean'
-    return means[['scenario', 'year', 'metric', 'stratum', 'cohort',
-                  'stat', 'value']]
+    per_rep = sub.groupby(['cohort', 'year', 'par_idx', 'seed'])['value'].sum()
+    out = _emit_stats(per_rep, ['cohort', 'year'],
+                      {'scenario': scenario, 'metric': 'new_cancers',
+                       'stratum': 'all'})
+    return out[['scenario', 'year', 'metric', 'stratum', 'cohort',
+                'stat', 'value']]
+
+
+def _paired_sum_diff_by_cohort_group(df, ref_scen, comp_scen, cohort_list,
+                                     group_label, window):
+    """Per-replicate cumulative CC diff (ref - comp) within a cohort GROUP,
+    then aggregate across replicates into (median, q25, q75).
+
+    Paired difference: ref and comp share the same (par_idx, seed) draws,
+    so subtracting per-replicate before taking the median preserves the
+    correlation and gives tighter uncertainty than diff-of-medians.
+    """
+    lo, hi = window
+    m = ((df['metric'] == 'new_cancers')
+         & (df['scenario'].isin([ref_scen, comp_scen]))
+         & (df['cohort'].isin(cohort_list)) & (df['stratum'] == 'all')
+         & (df['year'] >= lo) & (df['year'] <= hi))
+    sub = df[m]
+    if sub.empty:
+        return pd.DataFrame()
+    per_rep = (sub.groupby(['scenario', 'par_idx', 'seed'])['value'].sum()
+                  .unstack('scenario'))
+    diff = per_rep[ref_scen] - per_rep[comp_scen]
+    rows = []
+    for stat in DEFAULT_STATS:
+        if stat == 'median':
+            v = diff.median()
+        elif stat == 'q25':
+            v = diff.quantile(0.25)
+        elif stat == 'q75':
+            v = diff.quantile(0.75)
+        else:
+            v = diff.agg(stat)
+        rows.append(dict(scenario=f'{ref_scen}_minus_{comp_scen}',
+                         year=f'{lo}_{hi}',
+                         metric='new_cancers_averted',
+                         stratum='all', cohort=group_label,
+                         stat=stat, value=float(v)))
+    return pd.DataFrame(rows)
 
 
 def _cohort_group_year_mean(df, scenario, cohort_list, group_label,
                             window):
-    """Mean annual new_cancers by year, summed across a cohort GROUP."""
+    """Per-replicate annual new_cancers, summed across a cohort GROUP by year,
+    then aggregated across replicates into (median, q25, q75)."""
     lo, hi = window
     m = ((df['metric'] == 'new_cancers') & (df['scenario'] == scenario)
          & (df['stratum'] == 'all') & (df['cohort'].isin(cohort_list))
@@ -129,25 +192,23 @@ def _cohort_group_year_mean(df, scenario, cohort_list, group_label,
     sub = df[m]
     if sub.empty:
         return pd.DataFrame()
-    means = (sub.groupby(['year', 'par_idx', 'seed'])['value'].sum()
-                .groupby(level='year').mean()
-                .reset_index())
-    means['scenario'] = scenario
-    means['cohort'] = group_label
-    means['metric'] = 'new_cancers'
-    means['stratum'] = 'all'
-    means['stat'] = 'mean'
-    return means[['scenario', 'year', 'metric', 'stratum', 'cohort',
-                  'stat', 'value']]
+    per_rep = sub.groupby(['year', 'par_idx', 'seed'])['value'].sum()
+    out = _emit_stats(per_rep, ['year'],
+                      {'scenario': scenario, 'cohort': group_label,
+                       'metric': 'new_cancers', 'stratum': 'all'})
+    return out[['scenario', 'year', 'metric', 'stratum', 'cohort',
+                'stat', 'value']]
 
 
 # %% Per-figure preparation
 
 def prep_fig2(df):
     """Fig 2 panels:
-      A: ASR by year for S_novax, S_sq (median/min/max)
-      B: cumulative vax x screen strata under S_novax, S_sq (mean)
-      C: annual cases by cohort under S_sq (mean)
+      A: ASR by year for S_novax, S_sq (median + q25/q75 band)
+      B: cumulative vax x screen strata under S_novax, S_sq (medians
+         stacked; per-stratum q25/q75 available; total whisker uses
+         stratum='all' median/q25/q75)
+      C: annual cases by cohort under S_sq (median per cohort-year)
     """
     scens = ['S_novax', 'S_sq']
     parts = []
@@ -156,6 +217,9 @@ def prep_fig2(df):
     for stratum in VAXSCR_STRATA:
         parts.append(_sum_by(df, scens, cohort='whole', stratum=stratum,
                              window=(2020, 2125)))
+    # Total (all strata) for the whisker on the stacked bar.
+    parts.append(_sum_by(df, scens, cohort='whole', stratum='all',
+                         window=(2020, 2125)))
     parts.append(_cohort_year_mean(df, 'S_sq', COHORTS,
                                    window=(2025, 2100)))
     return pd.concat(parts, ignore_index=True)
@@ -169,9 +233,10 @@ def prep_fig3(df):
       B: cumulative new_cancers 2020-2125 for pre-2015 vs VT cohort GROUPS,
          under S_sq and S_sq_screenup_or5 (mean per rep -> mean across reps)
 
-    S_sq_screenup_or5 is simulated at a 90%/50% split (literally odds
-    ratio ~9), used here as a stand-in for our target assumption of
-    edu_OR ~3 (see Methods) pending an exact rerun — flagged for update.
+    S_sq_screenup_or5 is simulated at a 77.25%/53.09% split — the
+    exact solution for aggregate 70% at education odds ratio 3 (see
+    Methods). The '_or5' suffix refers to the vaccination edu_OR (SQ
+    vax split), which is unchanged; the screening OR is 3.
     S_sq_screenup_or1 (fully equitable, no education gap) is also
     summarised here as a bar-only counterfactual check — not plotted in
     panel A/B, but available for the equity comparison quoted in the text.
@@ -191,6 +256,15 @@ def prep_fig3(df):
                                       window=(2020, 2125)))
     parts.append(_sum_by_cohort_group(df, all_scens, VT_COHORTS, 'vt_group',
                                       window=(2020, 2125)))
+    # Paired-diff averted (SQ - scale-up) for the averted-bars panel with
+    # tight uncertainty; comp scenarios are or1 (equitable) and or5 (core).
+    for comp in ['S_sq_screenup_or1', 'S_sq_screenup_or5']:
+        parts.append(_paired_sum_diff_by_cohort_group(
+            df, 'S_sq', comp, ['pre2015'], 'pre2015_group',
+            window=(2020, 2125)))
+        parts.append(_paired_sum_diff_by_cohort_group(
+            df, 'S_sq', comp, VT_COHORTS, 'vt_group',
+            window=(2020, 2125)))
     return pd.concat(parts, ignore_index=True)
 
 
@@ -208,7 +282,7 @@ def prep_fig4(df):
              'S_infant_eff50']
     parts = []
     parts.append(_year_stat(df, scens, 'asr_cancer_incidence',
-                            years=(2020, 2100), stats=('median',)))
+                            years=(2020, 2100)))
     parts.append(_sum_by_cohort_group(df, scens, VT_COHORTS, 'vt_group',
                                       window=(2020, 2125)))
     return pd.concat(parts, ignore_index=True)
@@ -216,11 +290,12 @@ def prep_fig4(df):
 
 def prep_fig5(df):
     """Fig 5 (heatmap): VT-cohort cumulative CC 2025-2100 for the 3x3
-    infant coverage x efficacy grid, plus S_sq baseline and S_who_or5
-    (education-correlated, core) adol-scale-up reference for annotation."""
+    infant coverage x efficacy grid, plus S_sq baseline, S_who_or5
+    (education-correlated, core) adol-scale-up reference for annotation,
+    and S_novax for the no-vaccination comparison anchor in Panel A."""
     grid_scens = [f'S_infant_c{cov:02d}_e{ve:02d}'
                   for cov in (60, 75, 90) for ve in (50, 70, 95)]
-    ref_scens = ['S_sq', 'S_who_or5']
+    ref_scens = ['S_novax', 'S_sq', 'S_who_or5']
     return _sum_by_cohort_group(df, grid_scens + ref_scens, VT_COHORTS,
                                 'vt_group', window=(2025, 2100))
 

@@ -2,10 +2,10 @@
 
 Three panels for the S_novax vs S_sq comparison:
   A: smoothed ASR CC incidence 2020-2100 (grey no-vax, orange SQ) with a
-     median line and min-max envelope across replicates.
+     median line and IQR (q25-q75) envelope across replicates.
   B: cumulative CC cases 2020-2125 as a 4-way vax x screen stack per
-     scenario.
-  C: annual new CC cases under SQ, stacked area by 7 birth cohorts.
+     scenario, with an IQR whisker on the total.
+  C: annual new CC cases under SQ, stacked area by 7 birth cohorts (median).
 
 Reads a small committed summary from ``results/fig_data/fig2_data.csv``
 by default. Regenerate that summary with ``prepare_fig_data.py``.
@@ -64,8 +64,8 @@ def _asr_panel(ax, asr, scenarios=SCENS, xlim=ASR_XLIM,
         if sub.empty:
             continue
         med = sub[sub['stat'] == 'median'].set_index('year')['value'].sort_index()
-        lo = sub[sub['stat'] == 'min'].set_index('year')['value'].sort_index()
-        hi = sub[sub['stat'] == 'max'].set_index('year')['value'].sort_index()
+        lo = sub[sub['stat'] == 'q25'].set_index('year')['value'].sort_index()
+        hi = sub[sub['stat'] == 'q75'].set_index('year')['value'].sort_index()
         med_s = _smooth(med, smooth_window)
         lo_s = _smooth(lo, smooth_window)
         hi_s = _smooth(hi, smooth_window)
@@ -89,7 +89,8 @@ def _stack_panel(ax, stack, scenarios=SCENS):
     for name in scenarios:
         for key, _c, _l in VAXSCR_LAYERS:
             row = stack[(stack['scenario'] == name)
-                        & (stack['stratum'] == key)]
+                        & (stack['stratum'] == key)
+                        & (stack['stat'] == 'median')]
             v = float(row['value'].iloc[0]) if not row.empty else 0.0
             heights[key].append(v)
 
@@ -99,7 +100,26 @@ def _stack_panel(ax, stack, scenarios=SCENS):
         ax.bar(x+.2, vals, bottom=bottom, color=color,
                edgecolor='black', linewidth=0.4, label=label)
         bottom += vals
-    ax.set_ylim(0, 7.9e6)
+
+    # IQR whisker on totals (stratum='all'): stack median heights are approximate;
+    # exact totals per replicate underpin q25/q75.
+    tot_med = []
+    tot_lo = []
+    tot_hi = []
+    for name in scenarios:
+        sub = stack[(stack['scenario'] == name) & (stack['stratum'] == 'all')]
+        med = sub[sub['stat'] == 'median']['value']
+        lo = sub[sub['stat'] == 'q25']['value']
+        hi = sub[sub['stat'] == 'q75']['value']
+        tot_med.append(float(med.iloc[0]) if not med.empty else np.nan)
+        tot_lo.append(float(lo.iloc[0]) if not lo.empty else np.nan)
+        tot_hi.append(float(hi.iloc[0]) if not hi.empty else np.nan)
+    tot_med = np.asarray(tot_med); tot_lo = np.asarray(tot_lo); tot_hi = np.asarray(tot_hi)
+    yerr = np.vstack([tot_med - tot_lo, tot_hi - tot_med])
+    ax.errorbar(x + 0.2, tot_med, yerr=yerr, fmt='none',
+                ecolor='black', capsize=3, lw=0.8, zorder=5)
+
+    ax.set_ylim(0, 9.9e6)
     ax.set_title('B. Cumulative cancers')
     ax.set_xticks(x)
     ax.set_xticklabels([SCEN_LABELS[n].replace(' ', '\n') for n in scenarios],
@@ -117,6 +137,7 @@ def _cohort_panel(ax, cohort_ts, scenario='S_sq', window=(2025, 2100)):
     for cohort in COHORT_ORDER:
         sub = cohort_ts[(cohort_ts['scenario'] == scenario)
                         & (cohort_ts['cohort'] == cohort)
+                        & (cohort_ts['stat'] == 'median')
                         & (cohort_ts['year'] >= lo)
                         & (cohort_ts['year'] <= hi)]
         vals = np.zeros(len(years))
@@ -137,7 +158,7 @@ def _cohort_panel(ax, cohort_ts, scenario='S_sq', window=(2025, 2100)):
     sc.SIticks(ax)
 
 
-def plot_fig2(data_path=DEFAULT_DATA, outpath='figures/v3/fig2.png',
+def plot_fig2(data_path=DEFAULT_DATA, outpath='figures/fig2.png',
               cohort_scenario='S_sq',
               asr_xlim=ASR_XLIM,
               cohort_window=(2025, 2100)):
@@ -161,7 +182,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default=DEFAULT_DATA,
                         help='per-figure summary CSV (see prepare_fig_data.py)')
-    parser.add_argument('--outpath', default='figures/v3/fig2.png')
+    parser.add_argument('--outpath', default='figures/fig2.png')
     parser.add_argument('--cohort-scenario', default='S_sq')
     parser.add_argument('--asr-xlim', nargs=2, type=int, default=list(ASR_XLIM))
     parser.add_argument('--cohort-window', nargs=2, type=int,

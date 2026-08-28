@@ -36,27 +36,38 @@ VE_DESC    = (95, 70, 50)      # top-to-bottom on the heatmap
 
 BASELINE_SCEN = 'S_sq'
 REF_SCEN      = 'S_who_or5'
+NOVAX_SCEN    = 'S_novax'
 DEFAULT_DATA  = 'results/fig_data/fig5_data.csv'
 
 
 def load_data(data_path=DEFAULT_DATA):
     df = pd.read_csv(data_path)
-    lookup = dict(zip(df['scenario'], df['value']))
-    baseline = lookup[BASELINE_SCEN]
-    ref = lookup[REF_SCEN]
+    def _stat(scen, stat):
+        m = (df['scenario'] == scen) & (df['stat'] == stat)
+        row = df[m]
+        return float(row['value'].iloc[0]) if not row.empty else np.nan
+    baseline = _stat(BASELINE_SCEN, 'median')
+    ref = _stat(REF_SCEN, 'median')
+    novax = _stat(NOVAX_SCEN, 'median')
     abs_mat = np.zeros((len(VE_DESC), len(COV_LEVELS)))
+    lo_mat = np.zeros_like(abs_mat)
+    hi_mat = np.zeros_like(abs_mat)
     pct_mat = np.zeros_like(abs_mat)
     for i, ve in enumerate(VE_DESC):
         for j, cov in enumerate(COV_LEVELS):
-            v = lookup[f'S_infant_c{cov:02d}_e{ve:02d}']
+            scen = f'S_infant_c{cov:02d}_e{ve:02d}'
+            v = _stat(scen, 'median')
             abs_mat[i, j] = v
+            lo_mat[i, j] = _stat(scen, 'q25')
+            hi_mat[i, j] = _stat(scen, 'q75')
             pct_mat[i, j] = 100 * (baseline - v) / baseline if baseline > 0 else 0
-    return dict(abs_mat=abs_mat, pct_mat=pct_mat,
-                baseline=baseline, ref=ref)
+    return dict(abs_mat=abs_mat, lo_mat=lo_mat, hi_mat=hi_mat,
+                pct_mat=pct_mat, baseline=baseline, ref=ref, novax=novax)
 
 
 def _heatmap(ax, mat, cmap, fmt, title,
-             vmin=None, vmax=None, text_color='black'):
+             vmin=None, vmax=None, text_color='black',
+             iqr_mats=None, iqr_fmt=None):
     im = ax.imshow(mat, cmap=cmap, aspect='auto', origin='upper',
                    vmin=vmin, vmax=vmax)
     ax.set_xticks(range(len(COV_LEVELS)))
@@ -68,12 +79,16 @@ def _heatmap(ax, mat, cmap, fmt, title,
     ax.set_title(title)
     for i in range(mat.shape[0]):
         for j in range(mat.shape[1]):
-            ax.text(j, i, fmt.format(mat[i, j]),
-                    ha='center', va='center', color=text_color, fontsize=10)
+            label = fmt.format(mat[i, j])
+            if iqr_mats is not None:
+                lo, hi = iqr_mats
+                label += '\n' + iqr_fmt.format(lo[i, j], hi[i, j])
+            ax.text(j, i, label,
+                    ha='center', va='center', color=text_color, fontsize=9)
     plt.colorbar(im, ax=ax, shrink=0.8)
 
 
-def plot_fig5(data_path=DEFAULT_DATA, outpath='figures/v3/fig5.png'):
+def plot_fig5(data_path=DEFAULT_DATA, outpath='figures/fig5.png'):
     ut.set_font(11)
     d = load_data(data_path)
     baseline_vt = d['baseline']
@@ -82,8 +97,13 @@ def plot_fig5(data_path=DEFAULT_DATA, outpath='figures/v3/fig5.png'):
 
     fig, axes = plt.subplots(1, 2, figsize=(6.5, 3.4), layout='tight')
 
+    novax_vt = d['novax']
+    novax_label = (f'\nwithout vaccination: {novax_vt/1e3:,.0f}K'
+                   if not np.isnan(novax_vt) else '')
     _heatmap(axes[0], d['abs_mat'] / 1e3, cmap='YlOrRd', fmt='{:.0f}K',
-             title='A. Lifetime cancers')
+             title=f'A. Lifetime cancers{novax_label}',
+             iqr_mats=(d['lo_mat'] / 1e3, d['hi_mat'] / 1e3),
+             iqr_fmt='({:.0f}-{:.0f}K)')
 
     _heatmap(axes[1], d['pct_mat'], cmap='YlGnBu', fmt='{:.0f}%',
              title='B. Percent averted',
@@ -101,6 +121,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default=DEFAULT_DATA,
                         help='per-figure summary CSV (see prepare_fig_data.py)')
-    parser.add_argument('--outpath', default='figures/v3/fig5.png')
+    parser.add_argument('--outpath', default='figures/fig5.png')
     args = parser.parse_args()
     plot_fig5(data_path=args.data, outpath=args.outpath)

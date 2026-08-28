@@ -132,7 +132,7 @@ def _mechanism_b_panel(ax):
     ax.legend(handles=handles, fontsize=8, loc='lower left', frameon=True, handlelength=1.5, labelspacing=0.3)
 
 
-def plot_fig1(outpath='figures/v3/fig1.png'):
+def plot_fig1(outpath='figures/fig1.png'):
     ut.set_font(11)
     fig = plt.figure(figsize=(6.5, 6), layout='tight')
     gs = fig.add_gridspec(2, 2)
@@ -149,6 +149,6 @@ def plot_fig1(outpath='figures/v3/fig1.png'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--outpath', default='figures/v3/fig1.png')
+    parser.add_argument('--outpath', default='figures/fig1.png')
     args = parser.parse_args()
     plot_fig1(outpath=args.outpath)

@@ -11,10 +11,10 @@ redistributes cervical cancer averting across birth cohorts:
   B: cumulative CC cases averted by screening scale-up 2020-2125,
      split by pre-2015 vs post-2015 birth cohorts. Two bars.
 
-S_sq_screenup_or5 is simulated at a 90%/50% split (literally odds ratio
-~9); we use it as a stand-in for our target assumption of edu_OR ~3,
-based on Nigerian screening-by-education data (see Methods) — flagged
-for update once an exact-OR rerun is available. The fully-equitable
+S_sq_screenup_or5 is simulated at a 77.25%/53.09% split — the exact
+solution for aggregate 70% at education odds ratio 3, based on
+Nigerian screening-by-education data (see Methods). The '_or5' suffix
+refers to the vax edu_OR (unchanged); screening OR is 3. The fully-equitable
 variant (S_sq_screenup_or1, no education gap) is deliberately not
 plotted here — see the text for the equity comparison, which is small
 (see prepare_fig_data.py prep_fig3).
@@ -74,11 +74,18 @@ def _timeseries_panel(ax, ts, window=TIMESERIES_WINDOW,
                      & (ts['year'] >= window[0]) & (ts['year'] <= window[1])]
             if sub.empty:
                 continue
-            by_year = sub.set_index('year')['value'].sort_index()
-            s = _smooth(by_year, smooth_window)
-            ax.plot(s.index, s.values,
-                    color=GROUP_COLORS[group_key],
-                    linestyle=SCEN_STYLES[scen], lw=2.4)
+            med = sub[sub['stat'] == 'median'].set_index('year')['value'].sort_index()
+            lo = sub[sub['stat'] == 'q25'].set_index('year')['value'].sort_index()
+            hi = sub[sub['stat'] == 'q75'].set_index('year')['value'].sort_index()
+            med_s = _smooth(med, smooth_window)
+            lo_s = _smooth(lo, smooth_window)
+            hi_s = _smooth(hi, smooth_window)
+            c = GROUP_COLORS[group_key]
+            if not lo_s.empty and not hi_s.empty:
+                ax.fill_between(med_s.index, lo_s.values, hi_s.values,
+                                color=c, alpha=0.12, linewidth=0)
+            ax.plot(med_s.index, med_s.values,
+                    color=c, linestyle=SCEN_STYLES[scen], lw=2.4)
     ax.set_xlim(window); ax.set_ylim(0, None)
     ax.set_xlabel('Year')
     ax.set_ylabel('Annual new CC cases')
@@ -102,38 +109,57 @@ def _timeseries_panel(ax, ts, window=TIMESERIES_WINDOW,
 def _averted_bars_panel(ax, bars):
     groups = [('pre2015_group', GROUP_LABELS['pre2015_group']),
               ('vt_group',      GROUP_LABELS['vt_group'])]
+    diff_scen = f'{SCEN_SQ}_minus_{SCEN_SCALEUP}'
     heights = []
+    lo_err = []
+    hi_err = []
     sq_totals = []
     labels = []
     for key, label in groups:
         sq_row = bars[(bars['scenario'] == SCEN_SQ)
-                      & (bars['cohort'] == key)]
-        up_row = bars[(bars['scenario'] == SCEN_SCALEUP)
-                      & (bars['cohort'] == key)]
+                      & (bars['cohort'] == key)
+                      & (bars['stat'] == 'median')]
+        diff_med = bars[(bars['scenario'] == diff_scen)
+                        & (bars['cohort'] == key)
+                        & (bars['stat'] == 'median')]
+        diff_lo = bars[(bars['scenario'] == diff_scen)
+                       & (bars['cohort'] == key)
+                       & (bars['stat'] == 'q25')]
+        diff_hi = bars[(bars['scenario'] == diff_scen)
+                       & (bars['cohort'] == key)
+                       & (bars['stat'] == 'q75')]
         sq = float(sq_row['value'].iloc[0]) if not sq_row.empty else 0
-        up = float(up_row['value'].iloc[0]) if not up_row.empty else 0
-        heights.append(sq - up)
+        med = float(diff_med['value'].iloc[0]) if not diff_med.empty else 0
+        lo = float(diff_lo['value'].iloc[0]) if not diff_lo.empty else med
+        hi = float(diff_hi['value'].iloc[0]) if not diff_hi.empty else med
+        heights.append(med)
+        lo_err.append(med - lo)
+        hi_err.append(hi - med)
         sq_totals.append(sq)
         labels.append(label)
 
     x = np.arange(len(groups))
     colors = [GROUP_COLORS[k] for k, _ in groups]
     ax.bar(x, heights, color=colors, edgecolor='black', linewidth=0.5)
+    yerr = np.vstack([lo_err, hi_err])
+    ax.errorbar(x, heights, yerr=yerr, fmt='none',
+                ecolor='black', capsize=3, lw=0.8, zorder=5)
     top = max(heights) if heights else 1
     for i, (avg, sq) in enumerate(zip(heights, sq_totals)):
         pct = 100 * avg / sq if sq > 0 else 0
-        ax.text(x[i], avg + 0.02 * top,
+        ax.text(x[i], avg + hi_err[i] + 0.04 * top,
                 f'-{pct:.0f}%\n({avg/1e3:,.0f}K of {sq/1e3:,.0f}K)',
                 ha='center', va='bottom', fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel('Cancers averted')
     ax.set_title('B. Cancers averted by\nscreening scale-up')
-    ax.set_ylim(0, max(heights) * 1.35 if max(heights) > 0 else 1)
+    top_lim = max(np.asarray(heights) + np.asarray(hi_err)) if heights else 1
+    ax.set_ylim(0, top_lim * 1.45 if top_lim > 0 else 1)
     sc.SIticks(ax)
 
 
-def plot_fig3(data_path=DEFAULT_DATA, outpath='figures/v3/fig3.png',
+def plot_fig3(data_path=DEFAULT_DATA, outpath='figures/fig3.png',
               timeseries_window=TIMESERIES_WINDOW):
     ut.set_font(11)
     d = load_data(data_path)
@@ -152,7 +178,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default=DEFAULT_DATA,
                         help='per-figure summary CSV (see prepare_fig_data.py)')
-    parser.add_argument('--outpath', default='figures/v3/fig3.png')
+    parser.add_argument('--outpath', default='figures/fig3.png')
     parser.add_argument('--timeseries-window', nargs=2, type=int,
                         default=list(TIMESERIES_WINDOW))
     args = parser.parse_args()

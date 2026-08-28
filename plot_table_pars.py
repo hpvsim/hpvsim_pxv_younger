@@ -2,7 +2,7 @@
 
 Writes CSV + LaTeX outputs. Consumes:
   results/nigeria_pars.obj      (best_pars dict)
-  raw_results/nigeria_calib.obj (shrunken calib for top-N ranges)
+  results/nigeria_calib.obj (shrunken calib for top-N ranges)
   model.py                      (fixed network pars)
 """
 import argparse
@@ -72,7 +72,7 @@ def _calibrated_rows(best_pars, calib_df=None, top_n=50):
 
 
 def build_pars_table(pars_path='results/nigeria_pars.obj',
-                     calib_path='raw_results/nigeria_calib.obj',
+                     calib_path='results/nigeria_calib.obj',
                      top_n=50):
     best = sc.load(pars_path)
     calib_df = None
@@ -111,7 +111,7 @@ def _to_latex(df, caption, label):
 def main(csv_out='results/table_pars.csv',
          tex_out='results/table_pars.tex',
          pars_path='results/nigeria_pars.obj',
-         calib_path='raw_results/nigeria_calib.obj',
+         calib_path='results/nigeria_calib.obj',
          top_n=50):
     df = build_pars_table(pars_path=pars_path, calib_path=calib_path, top_n=top_n)
     os.makedirs(os.path.dirname(csv_out) or '.', exist_ok=True)
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     parser.add_argument('--csv-out', default='results/table_pars.csv')
     parser.add_argument('--tex-out', default='results/table_pars.tex')
     parser.add_argument('--pars-path', default='results/nigeria_pars.obj')
-    parser.add_argument('--calib-path', default='raw_results/nigeria_calib.obj')
+    parser.add_argument('--calib-path', default='results/nigeria_calib.obj')
     parser.add_argument('--top-n', type=int, default=50)
     args = parser.parse_args()
     main(csv_out=args.csv_out, tex_out=args.tex_out,

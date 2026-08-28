@@ -69,13 +69,21 @@ def load_data(data_path=DEFAULT_DATA):
 def _asr_panel(ax, asr, window=TIMESERIES_WINDOW,
                smooth_window=SMOOTH_WINDOW):
     for name in SCENS:
-        sub = asr[(asr['scenario'] == name) & (asr['stat'] == 'median')
+        sub = asr[(asr['scenario'] == name)
                   & (asr['year'] >= window[0]) & (asr['year'] <= window[1])]
         if sub.empty:
             continue
-        by_year = sub.set_index('year')['value'].sort_index()
-        s = _smooth(by_year, smooth_window)
-        ax.plot(s.index, s.values, color=SCEN_COLORS[name], lw=2.5,
+        med = sub[sub['stat'] == 'median'].set_index('year')['value'].sort_index()
+        lo = sub[sub['stat'] == 'q25'].set_index('year')['value'].sort_index()
+        hi = sub[sub['stat'] == 'q75'].set_index('year')['value'].sort_index()
+        med_s = _smooth(med, smooth_window)
+        c = SCEN_COLORS[name]
+        if not lo.empty and not hi.empty:
+            lo_s = _smooth(lo, smooth_window)
+            hi_s = _smooth(hi, smooth_window)
+            ax.fill_between(med_s.index, lo_s.values, hi_s.values,
+                            color=c, alpha=0.15, linewidth=0)
+        ax.plot(med_s.index, med_s.values, color=c, lw=2.5,
                 label=SCEN_LABELS[name].replace('\n', ' '))
     ax.axhline(ASR_ELIMINATION_TARGET, color='dimgrey', lw=1, linestyle='--')
     ax.set_xlim(window); ax.set_ylim(0, None)
@@ -86,31 +94,36 @@ def _asr_panel(ax, asr, window=TIMESERIES_WINDOW,
 
 
 def _vt_bar_panel(ax, bars):
+    def _stat_val(scen, stat):
+        row = bars[(bars['scenario'] == scen) & (bars['stat'] == stat)]
+        return float(row['value'].iloc[0]) if not row.empty else 0.0
     x = np.arange(len(SCENS))
-    heights = np.array([
-        bars[bars['scenario'] == s]['value'].iloc[0] if not bars[bars['scenario'] == s].empty else 0
-        for s in SCENS
-    ])
+    heights = np.array([_stat_val(s, 'median') for s in SCENS])
+    los = np.array([_stat_val(s, 'q25') for s in SCENS])
+    his = np.array([_stat_val(s, 'q75') for s in SCENS])
     colors = [SCEN_COLORS[s] for s in SCENS]
     ax.bar(x, heights, color=colors, edgecolor='black', linewidth=0.5)
+    yerr = np.vstack([heights - los, his - heights])
+    ax.errorbar(x, heights, yerr=yerr, fmt='none',
+                ecolor='black', capsize=3, lw=0.8, zorder=5)
     baseline = heights[0]
-    top = max(heights) if len(heights) else 1
+    top = (heights + (his - heights)).max() if len(heights) else 1
     for i, h in enumerate(heights):
         if i == 0 or baseline <= 0:
             continue
         pct = 100 * (baseline - h) / baseline
-        ax.text(x[i], h + 0.01 * top, f'-{pct:.0f}%',
+        ax.text(x[i], his[i] + 0.02 * top, f'-{pct:.0f}%',
                 ha='center', va='bottom', fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels([BAR_LABELS[s] for s in SCENS],
                        fontsize=7, rotation=0, ha='center')
     ax.set_ylabel('Lifetime cancers,\nvaccine-targetable cohorts')
     ax.set_title('B. Vaccine-targetable cohort cancers')
-    ax.set_ylim(0, heights.max() * 1.15 if heights.max() > 0 else 1)
+    ax.set_ylim(0, top * 1.2 if top > 0 else 1)
     sc.SIticks(ax)
 
 
-def plot_fig4(data_path=DEFAULT_DATA, outpath='figures/v3/fig4.png',
+def plot_fig4(data_path=DEFAULT_DATA, outpath='figures/fig4.png',
               timeseries_window=TIMESERIES_WINDOW):
     ut.set_font(11)
     d = load_data(data_path)
@@ -129,7 +142,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default=DEFAULT_DATA,
                         help='per-figure summary CSV (see prepare_fig_data.py)')
-    parser.add_argument('--outpath', default='figures/v3/fig4.png')
+    parser.add_argument('--outpath', default='figures/fig4.png')
     parser.add_argument('--timeseries-window', nargs=2, type=int,
                         default=list(TIMESERIES_WINDOW))
     args = parser.parse_args()

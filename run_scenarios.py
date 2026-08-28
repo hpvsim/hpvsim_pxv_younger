@@ -60,13 +60,16 @@ COV_WHO_IN_SCHOOL     = 0.90
 # Screening scale-up targets (lifetime coverage over 20-year age window).
 # Two variants used across the scenario matrix:
 #   EQUAL:      both education tiers at 70% (WHO 70 target, no gradient).
-#   CORRELATED: 90% for primary-completers, 50% for non-completers
-#               (prob ratio 1.8, odds-ratio 9 — a strong education
-#               gradient; ≈ hits 70% aggregate for ~50/50 completion).
-SCREEN_EQUAL_POST      = 0.70
-SCREEN_EQUAL_PRE       = 0.70
-SCREEN_CORRELATED_POST = 0.90
-SCREEN_CORRELATED_PRE  = 0.50
+#   CORRELATED: primary-completers vs non-completers split so the aggregate
+#               hits WHO-70 (0.70) at an education odds ratio of 3 —
+#               solved via _solve_or_split(0.70, 3.0, F_IN_SCHOOL_AT_9)
+#               → post ≈ 0.7725, pre ≈ 0.5309.
+SCREEN_EQUAL_POST         = 0.70
+SCREEN_EQUAL_PRE          = 0.70
+SCREEN_CORRELATED_AGG     = 0.70
+SCREEN_EDU_OR             = 3.0
+SCREEN_CORRELATED_POST    = 0.7725  # from _solve_or_split(0.70, 3.0, 0.70)
+SCREEN_CORRELATED_PRE     = 0.5309
 
 INFANT_START_YEAR    = 2030
 INFANT_COV_BASE      = 0.60
@@ -473,8 +476,8 @@ def _infant_routine(name_prefix, coverage, ve, start_year):
 
 # WHO variants: OOS vax stays at 90% (equal to in-school) — vax equity is
 # 'optimistic'. Only screening varies (equal 70/70 vs correlated 90/50).
-_EQUAL_SCREEN = (SCREEN_EQUAL_POST, SCREEN_EQUAL_PRE)              # (0.70, 0.70)
-_CORRELATED_SCREEN = (SCREEN_CORRELATED_POST, SCREEN_CORRELATED_PRE)  # (0.90, 0.50)
+_EQUAL_SCREEN = (SCREEN_EQUAL_POST, SCREEN_EQUAL_PRE)                 # (0.70, 0.70)
+_CORRELATED_SCREEN = (SCREEN_CORRELATED_POST, SCREEN_CORRELATED_PRE)  # (0.7725, 0.5309), OR=3 @ agg=0.70
 _SQ_SCREENUP_SCREEN_MAP = {
     'S_sq_screenup_or1': _EQUAL_SCREEN,
     'S_sq_screenup_or5': _CORRELATED_SCREEN,
@@ -683,76 +686,168 @@ def _extract_rows(sim, **tags):
     return rows
 
 
-def run_all_scenarios(n_pars=3, n_seeds=3, stop=2125,
-                      out_csv='raw_results/scenarios.csv',
-                      out_obj=None,
-                      n_workers=None,
-                      **sim_kwargs):
-    """Run all scenarios × n_pars × n_seeds in ONE MultiSim so every sim
-    parallelizes at once.
-
-    Memory-safe by default: extracts summary rows from each finished sim
-    then drops the reference so the parent process never holds all raw
-    Sim objects at once. Only the compact ``rows`` list (~a few tens of
-    MB) and the CSV write survive to the end.
-
-    ``out_obj`` defaults to None — do NOT pickle the raw sim objects
-    unless a caller explicitly wants them. Cloudpickling 100+ fully-
-    populated Sim objects has crashed the box (see incident 2026-08-25).
-    If you truly need raw sims, use ``hpv.make_calib_sims`` to rerun the
-    top-N calibration draws with an extract_fn instead.
-
-    ``n_workers`` defaults to min(n_sims, cpu_count). Each parallel
-    worker peaks around 2-3 GB near the end of the horizon.
-    """
+def run_one_scenario_to_csv(name, n_pars, n_seeds, stop, n_agents,
+                            partial_path, n_workers=None, **sim_kwargs):
+    """Run one scenario × n_pars × n_seeds and write its partial CSV.
+    Intended to be invoked from a subprocess so worker fork parent stays
+    lean (no cross-scenario memory accumulation)."""
     par_sets = _load_top_par_sets(n_pars)
     sims = []
     tags = []
-    for name in SCENARIO_NAMES:
-        for p_idx, pars in enumerate(par_sets):
-            for s_idx in range(n_seeds):
-                sim = build_scenario_sim(name, calib_pars=pars, rand_seed=s_idx,
-                                          stop=stop, **sim_kwargs)
-                sims.append(sim)
-                tags.append(dict(scenario=name, par_idx=p_idx, seed=s_idx))
+    for p_idx, pars in enumerate(par_sets):
+        for s_idx in range(n_seeds):
+            sim = build_scenario_sim(name, calib_pars=pars, rand_seed=s_idx,
+                                      stop=stop, n_agents=n_agents,
+                                      **sim_kwargs)
+            sims.append(sim)
+            tags.append(dict(scenario=name, par_idx=p_idx, seed=s_idx))
 
-    if n_workers is None:
-        n_workers = min(len(sims), os.cpu_count() or 1)
+    n_batch_workers = min(len(sims), n_workers or os.cpu_count() or 1)
     msim = ss.MultiSim(sims=sims)
-    msim.run(n_cpus=n_workers)
+    msim.run(n_cpus=n_batch_workers)
+    del sims
 
     rows = []
-    scenarios = {name: [] for name in SCENARIO_NAMES} if out_obj else None
-    n = len(msim.sims)
-    for i in range(n):
-        tag = tags[i]
-        sim = msim.sims[i]
-        rows += _extract_rows(sim, **tag)
-        if scenarios is not None:
-            sim.shrink()  # drop people arrays; keep results only
-            scenarios[tag['scenario']].append(sim)
-        msim.sims[i] = None  # free RAM immediately
+    for i in range(len(msim.sims)):
+        rows += _extract_rows(msim.sims[i], **tags[i])
+        msim.sims[i] = None
+    del msim
 
-    os.makedirs(os.path.dirname(out_csv), exist_ok=True)
-    df = pd.DataFrame(rows)
-    df.to_csv(out_csv, index=False)
-    if out_obj:
-        os.makedirs(os.path.dirname(out_obj), exist_ok=True)
-        sc.saveobj(out_obj, scenarios)
-    return scenarios, df
+    os.makedirs(os.path.dirname(partial_path) or '.', exist_ok=True)
+    pd.DataFrame(rows).to_csv(partial_path, index=False)
+    return len(rows)
+
+
+def aggregate_partials(partial_dir='raw_results/partials',
+                       fig_data_dir='results/fig_data'):
+    """Read every per-scenario partial CSV, concat, run PREP_FUNCS, write
+    the four ``results/fig_data/fig{2,3,4,5}_data.csv`` summary files."""
+    import prepare_fig_data as pf
+
+    os.makedirs(fig_data_dir, exist_ok=True)
+    partials = []
+    missing = []
+    for name in SCENARIO_NAMES:
+        p = os.path.join(partial_dir, f'{name}.csv')
+        if not os.path.exists(p):
+            missing.append(name)
+            continue
+        partials.append(pd.read_csv(p))
+    if missing:
+        raise FileNotFoundError(
+            f'missing {len(missing)} partial CSVs: {missing[:5]}...')
+    df = pd.concat(partials, ignore_index=True)
+    del partials
+
+    for fig, prep_fn in pf.PREP_FUNCS.items():
+        out_df = prep_fn(df)
+        out_path = os.path.join(fig_data_dir, f'{fig}_data.csv')
+        out_df.to_csv(out_path, index=False)
+        print(f'  {out_path}: {len(out_df):,} rows, '
+              f'{os.path.getsize(out_path)/1024:.1f} KB')
+    return df
+
+
+def run_all_scenarios(n_pars=10, n_seeds=5, stop=2125, n_agents=10_000,
+                      fig_data_dir='results/fig_data',
+                      partial_dir='raw_results/partials',
+                      keep_partials=False, n_workers=None,
+                      resume=True):
+    """Orchestrator: run each scenario in a FRESH Python subprocess (so
+    worker fork parents stay lean; no memory accumulation across scenarios),
+    then aggregate all partials to per-figure summary CSVs.
+
+    Set ``resume=True`` (default) to skip scenarios whose partial CSV
+    already exists — safe restart after a crash.
+    """
+    import subprocess
+    import sys
+
+    os.makedirs(partial_dir, exist_ok=True)
+    script = os.path.abspath(__file__)
+
+    for s_idx, name in enumerate(SCENARIO_NAMES, 1):
+        partial_path = os.path.join(partial_dir, f'{name}.csv')
+        if resume and os.path.exists(partial_path):
+            print(f'  [{s_idx}/{len(SCENARIO_NAMES)}] {name}: '
+                  f'skipping (partial exists)')
+            continue
+        cmd = [sys.executable, '-u', script,
+               '--scenario', name,
+               '--n-pars', str(n_pars), '--n-seeds', str(n_seeds),
+               '--stop', str(stop), '--n-agents', str(n_agents),
+               '--partial-path', partial_path]
+        if n_workers is not None:
+            cmd += ['--n-workers', str(n_workers)]
+        print(f'  [{s_idx}/{len(SCENARIO_NAMES)}] {name}: {" ".join(cmd)}')
+        t0 = sc.timer()
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f'scenario {name} subprocess failed with code {result.returncode}')
+        print(f'    done in {t0.total:.0f}s')
+
+    df = aggregate_partials(partial_dir=partial_dir,
+                            fig_data_dir=fig_data_dir)
+
+    if not keep_partials:
+        for name in SCENARIO_NAMES:
+            p = os.path.join(partial_dir, f'{name}.csv')
+            if os.path.exists(p):
+                os.remove(p)
+        try:
+            os.rmdir(partial_dir)
+        except OSError:
+            pass
+    return df
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n-pars', type=int, default=5)
-    parser.add_argument('--n-seeds', type=int, default=3)
+    parser.add_argument('--n-pars', type=int, default=10)
+    parser.add_argument('--n-seeds', type=int, default=5)
     parser.add_argument('--stop', type=int, default=2125)
+    parser.add_argument('--n-agents', type=int, default=10_000,
+                        help='agent count per sim (was 20k pre-2026-08-28 crash)')
+    parser.add_argument('--n-workers', type=int, default=None,
+                        help='workers per scenario batch (default min(n_sims, cpu_count))')
+    parser.add_argument('--keep-partials', action='store_true',
+                        help='keep per-scenario raw CSVs in raw_results/partials/ '
+                             '(deleted by default after fig_data aggregation)')
+    parser.add_argument('--scenario', default=None,
+                        help='single-scenario mode: run this scenario only, '
+                             'write --partial-path, exit. Used by the '
+                             'orchestrator to isolate each scenario in its own '
+                             'fresh Python process (avoids fork parent bloat).')
+    parser.add_argument('--partial-path', default=None,
+                        help='output CSV path for --scenario mode')
+    parser.add_argument('--aggregate', action='store_true',
+                        help='aggregate existing partials → fig_data CSVs and exit')
+    parser.add_argument('--no-resume', action='store_true',
+                        help='rerun all scenarios even if partials exist')
     args = parser.parse_args()
 
     T = sc.timer()
-    scenarios, df = run_all_scenarios(
-        n_pars=args.n_pars, n_seeds=args.n_seeds, stop=args.stop,
-    )
-    print(f'wrote {len(df)} rows across {len(scenarios)} scenarios')
+    if args.aggregate:
+        aggregate_partials()
+    elif args.scenario is not None:
+        if args.partial_path is None:
+            args.partial_path = os.path.join('raw_results/partials',
+                                             f'{args.scenario}.csv')
+        n = run_one_scenario_to_csv(
+            args.scenario,
+            n_pars=args.n_pars, n_seeds=args.n_seeds, stop=args.stop,
+            n_agents=args.n_agents, partial_path=args.partial_path,
+            n_workers=args.n_workers,
+        )
+        print(f'{args.scenario}: {n:,} rows -> {args.partial_path}')
+    else:
+        df = run_all_scenarios(
+            n_pars=args.n_pars, n_seeds=args.n_seeds, stop=args.stop,
+            n_agents=args.n_agents, n_workers=args.n_workers,
+            keep_partials=args.keep_partials, resume=not args.no_resume,
+        )
+        print(f'wrote {len(df):,} extracted rows across '
+              f'{len(SCENARIO_NAMES)} scenarios')
     T.toc()

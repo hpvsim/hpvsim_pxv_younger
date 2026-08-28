@@ -95,7 +95,7 @@ def save_figS2_data(calib, res_to_plot=100, resfolder='results'):
         pd.read_csv(path).to_csv(f'{resfolder}/figS2_target_{name}.csv', index=False)
 
 
-def plot_calib(resfolder='results', outpath='figures/figS2_calibration.png'):
+def plot_calib(resfolder='results', outpath='figures/figS2.png'):
     ut.set_font(size=24)
     fig = plt.figure(layout='tight', figsize=(12, 11))
     canc_col = '#c1981d'
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     # valid after the v3 freeze commit populates results/v3.0.0_baseline/.
     parser.add_argument('--resfolder', default='results/v2.3.0_baseline',
                         help='Dir with plot-ready CSVs (for plot mode only)')
-    parser.add_argument('--outpath', default='figures/figS2_calibration.png')
+    parser.add_argument('--outpath', default='figures/figS2.png')
     parser.add_argument('--res-to-plot', type=int, default=100)
     args = parser.parse_args()
 

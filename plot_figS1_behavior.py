@@ -116,7 +116,7 @@ def _panel_casual_dist(ax, resfolder, sex_label, panel_label):
 
 
 def plot_sb(dist_type='lognormal', resfolder='results',
-            outpath='figures/figS1_nigeria_behavior.png'):
+            outpath='figures/figS1.png'):
     ut.set_font(13)
     fig, axes = plt.subplots(2, 3, figsize=(16, 10), layout='tight')
     ms = 80
@@ -135,7 +135,7 @@ if __name__ == '__main__':
                         help='Run the sim and save sexual-behavior CSVs (VM-side)')
     parser.add_argument('--resfolder', default='results/v2.3.0_baseline',
                         help='Dir with plot-ready CSVs (for plot mode only)')
-    parser.add_argument('--outpath', default='figures/figS1_nigeria_behavior.png')
+    parser.add_argument('--outpath', default='figures/figS1.png')
     args = parser.parse_args()
 
     if args.run_sim:

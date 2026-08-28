@@ -40,7 +40,7 @@ class Education(ss.Module):
 
         in_school_uids = self.in_school.uids
         if len(in_school_uids):
-            self.edu_attainment[in_school_uids] += self.t.dt
+            self.edu_attainment[in_school_uids] += self.t.dt_year
 
         enroll_candidates = (ppl.female & ~self.ever_in_school
                              & (ppl.age >= start_age)

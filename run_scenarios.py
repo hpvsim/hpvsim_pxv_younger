@@ -177,7 +177,7 @@ def _recently_screened(sim, gap_years=SCREEN_GAP_YEARS):
     """UIDs screened by any screening intervention within the last
     ``gap_years`` years. NaN ``ti_screened`` values compare False and are
     correctly excluded."""
-    dt_year = float(sim.t.dt)  # starsim TimePar → year fraction
+    dt_year = sim.t.dt_year
     ti_thresh = sim.ti - int(gap_years / dt_year)
     out = ss.uids()
     for name in _SCREEN_INTV_NAMES:

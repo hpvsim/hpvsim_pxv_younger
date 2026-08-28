@@ -192,7 +192,7 @@ class AFS(ss.Analyzer):
 
     def step(self):
         sim = self.sim
-        current_year = float(sim.timevec[sim.ti].years)
+        current_year = sim.t.year
 
         # Find which (cohort, bin) slots fire this tick
         cohort_inds, bin_inds = sc.findinds(self._cohort_years, current_year)

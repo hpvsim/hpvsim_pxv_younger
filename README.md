@@ -6,12 +6,16 @@ Legacy v2.0.x baselines live in [`results/v2.0.x_published/`](results/v2.0.x_pub
 
 ## Installation
 
+For a reproducible environment matching the paper's numbers, install from the pinned `requirements.txt`:
+
 ```bash
-pip install -e /path/to/hpvsim   # rc3.1.0 branch
-pip install seaborn optuna
+conda create -n hpvsim31 python=3.11 -y
+conda activate hpvsim31
+pip install -r requirements.txt
+python -c "import hpvsim as hpv; hpv.download_data()"  # first-run country data
 ```
 
-Python 3.11+.
+`requirements.txt` pins HPVsim to the exact commit corresponding to the "v3.1.0" state cited in the Methods (`76af6cc5` on `starsimhub/hpvsim`, the last commit of the rc3.1.0 branch — see [PR #130](https://github.com/starsimhub/hpvsim/pull/130)), plus exact versions of `starsim`, `sciris`, `pandas`, `numpy`, `scipy`, `matplotlib`, and `optuna` as tested. Python 3.11+.
 
 ## Repository layout
 

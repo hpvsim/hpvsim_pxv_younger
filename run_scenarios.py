@@ -94,6 +94,31 @@ SCENARIO_NAMES = [
     for c in (0.60, 0.75, 0.90) for e in (0.50, 0.70, 0.95)
 ]
 
+# Round-2 revision: finer OR sweep for the education-uptake sensitivity
+# analysis (round-2 reviewer comment 1). Kept as a SEPARATE list from
+# SCENARIO_NAMES so existing aggregate_partials / prepare_fig_data flows
+# are unaffected. Runs via ``run_or_sweep`` / ``--sweep`` and are
+# processed by a dedicated plot script (plot_figS4_or_sweep.py).
+#
+# vax_OR sweep: SQ scenario (60% aggregate coverage, 15% baseline
+# screening, screening_OR=3) with vax_OR varied. Baseline vax_OR=5 is
+# the existing S_sq; the sweep adds intermediate values on either side.
+VAX_OR_SWEEP = (2.0, 3.0, 8.0)  # 5.0 = existing S_sq
+_VAX_OR_SWEEP_NAMES = {f'S_sq_vor{int(or_val)}': or_val for or_val in VAX_OR_SWEEP}
+#   -> {'S_sq_vor2': 2.0, 'S_sq_vor3': 3.0, 'S_sq_vor8': 8.0}
+
+# screening_OR sweep: SQ vax (60%, vax_OR=5) with screening scaled to
+# 70% aggregate at varying screening_OR. Baselines: existing
+# S_sq_screenup_or1 (screening_OR=1) and S_sq_screenup_or5 (screening
+# _OR=3 — legacy name; the '5' refers to vax_OR of 5 in that pair).
+SCREEN_OR_SWEEP = (2.0, 5.0)  # 1.0 = _or1, 3.0 = _or5 (legacy names)
+_SCREEN_OR_SWEEP_NAMES = {
+    f'S_sq_screenup_sor{int(or_val)}': or_val for or_val in SCREEN_OR_SWEEP
+}
+#   -> {'S_sq_screenup_sor2': 2.0, 'S_sq_screenup_sor5': 5.0}
+
+SCENARIO_SWEEP_NAMES = list(_VAX_OR_SWEEP_NAMES) + list(_SCREEN_OR_SWEEP_NAMES)
+
 
 # %% edu_or math
 
@@ -596,7 +621,30 @@ def _build_interventions_for(name, sim_end_year, infant_ve_override=None,
         return (make_st(post_target=post, pre_target=pre, end_year=sim_end_year)
                 + base + bridge + infant)
 
-    raise ValueError(f'Unknown scenario {name!r}; expected one of {SCENARIO_NAMES}')
+    # Round-2 revision: finer OR sweep. vax_OR sweep = S_sq structure
+    # (60% aggregate, baseline screening) with vax_OR varied. screening
+    # _OR sweep = SQ vax + 70% screening scale-up with screening_OR varied.
+    if name in _VAX_OR_SWEEP_NAMES:
+        or_val = _VAX_OR_SWEEP_NAMES[name]
+        p_is, p_oos = _solve_or_split(COV_SQ_AGGREGATE, or_val,
+                                      F_IN_SCHOOL_AT_9)
+        is_arm = _post_2026_adol(f'{name.lower()}_is', p_is, ADOL_VE,
+                                 eligibility=_in_school)
+        oos_arm = _post_2026_adol(f'{name.lower()}_oos', p_oos, ADOL_VE,
+                                  eligibility=_out_of_school)
+        return (make_st(end_year=sim_end_year)
+                + base + is_arm + oos_arm)
+
+    if name in _SCREEN_OR_SWEEP_NAMES:
+        or_val = _SCREEN_OR_SWEEP_NAMES[name]
+        post, pre = _solve_or_split(SCREEN_CORRELATED_AGG, or_val,
+                                    F_IN_SCHOOL_AT_9)
+        return (make_st(post_target=post, pre_target=pre, end_year=sim_end_year)
+                + base + _sq_adol_arms(name.lower()))
+
+    raise ValueError(
+        f'Unknown scenario {name!r}; expected one of '
+        f'{SCENARIO_NAMES + SCENARIO_SWEEP_NAMES}')
 
 
 # %% Sim builder + orchestration
@@ -802,6 +850,47 @@ def run_all_scenarios(n_pars=10, n_seeds=5, stop=2125, n_agents=10_000,
     return df
 
 
+def run_or_sweep(n_pars=10, n_seeds=5, stop=2125, n_agents=10_000,
+                 partial_dir='raw_results/or_sweep_partials',
+                 n_workers=None, resume=True):
+    """Orchestrator for the round-2 education-uptake OR sweep. Runs each
+    scenario in ``SCENARIO_SWEEP_NAMES`` in a fresh Python subprocess (as
+    ``run_all_scenarios`` does for the main matrix). Writes partial CSVs
+    to ``partial_dir`` (kept around for downstream plotting; no aggregation
+    into fig_data files — the sweep gets its own plot script).
+    """
+    import subprocess
+    import sys
+
+    os.makedirs(partial_dir, exist_ok=True)
+    script = os.path.abspath(__file__)
+
+    n = len(SCENARIO_SWEEP_NAMES)
+    for s_idx, name in enumerate(SCENARIO_SWEEP_NAMES, 1):
+        partial_path = os.path.join(partial_dir, f'{name}.csv')
+        if resume and os.path.exists(partial_path):
+            print(f'  [{s_idx}/{n}] {name}: skipping (partial exists)')
+            continue
+        cmd = [sys.executable, '-u', script,
+               '--scenario', name,
+               '--n-pars', str(n_pars), '--n-seeds', str(n_seeds),
+               '--stop', str(stop), '--n-agents', str(n_agents),
+               '--partial-path', partial_path]
+        if n_workers is not None:
+            cmd += ['--n-workers', str(n_workers)]
+        print(f'  [{s_idx}/{n}] {name}: {" ".join(cmd)}')
+        t0 = sc.timer()
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f'sweep scenario {name} subprocess failed with code '
+                f'{result.returncode}')
+        print(f'    done in {t0.total:.0f}s')
+
+    print(f'\nOR sweep complete: {n} scenarios in {partial_dir}')
+    return partial_dir
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -826,11 +915,23 @@ if __name__ == '__main__':
                         help='aggregate existing partials → fig_data CSVs and exit')
     parser.add_argument('--no-resume', action='store_true',
                         help='rerun all scenarios even if partials exist')
+    parser.add_argument('--sweep', action='store_true',
+                        help='run the round-2 education-uptake OR sweep '
+                             '(SCENARIO_SWEEP_NAMES) instead of the main '
+                             'scenario matrix; writes to '
+                             'raw_results/or_sweep_partials/ (no fig_data '
+                             'aggregation).')
     args = parser.parse_args()
 
     T = sc.timer()
     if args.aggregate:
         aggregate_partials()
+    elif args.sweep:
+        run_or_sweep(
+            n_pars=args.n_pars, n_seeds=args.n_seeds, stop=args.stop,
+            n_agents=args.n_agents, n_workers=args.n_workers,
+            resume=not args.no_resume,
+        )
     elif args.scenario is not None:
         if args.partial_path is None:
             args.partial_path = os.path.join('raw_results/partials',

@@ -230,6 +230,11 @@ Figure S2: HPVsim Nigeria model calibration — primary goodness-of-fit diagnost
 ![][image8]  
 Figure S3: Calibration posterior time series as a goodness-of-fit diagnostic. HPV prevalence, CIN prevalence, and age-standardized cervical cancer incidence (ASR, WHO 2000 standard) simulated from the top-50 calibration draws; solid line = median across draws, shaded band = 2.5–97.5 percentile interval across draws.
 
+# Supplementary Figure S4
+
+![][image9]  
+Figure S4: Education-uptake sensitivity — finer sweep across vaccination and screening odds ratios. Cancers averted in vaccine-targetable cohorts (birth cohorts 2015–2044, cumulative 2025–2100) relative to the status quo (S_sq: 60% aggregate adolescent coverage with vaccination OR = 5, 15% baseline screening). (A) Vaccination OR sweep — vaccination OR ∈ {2, 3, 5, 8} with aggregate coverage fixed at 60% and screening held at the 15% baseline. OR = 5 is the paper's baseline (zero by construction). (B) Screening OR sweep — screening OR ∈ {1, 2, 3, 5} at the 70% aggregate scale-up target, with vaccination held at the status-quo distribution (OR = 5, 60% aggregate). OR = 1 corresponds to the "equitable" scale-up scenario in Table 1 and OR = 3 to the "correlated" scale-up. Orange markers indicate the paper's baseline OR values; navy markers indicate the additional round-2 sweep values. Whiskers span the IQR (thick, 25th–75th percentile) and 95% uncertainty interval (thin, 2.5th–97.5th percentile) across the 50 replicates per scenario (10 calibration draws × 5 model seeds). Numeric values plotted here are reported in Supplementary Table S3.
+
 # Supplementary Table S1
 
 Table S1: Model parameters (Nigeria). Fixed network parameters are drawn from the 2018 Nigeria DHS; all other parameters were calibrated (see Model overview and Nigeria calibration), with the reported range spanning the top-50 best-fitting parameter sets by goodness-of-fit score. Full intervention parameter values used to build each scenario are given in Supplementary Table S2.
@@ -292,6 +297,28 @@ Table S2: Intervention parameters used to build each scenario in Table 1. All no
 | Infant delivery, 60/75/90% coverage × 50/70/95% efficacy (Fig 5 grid) | 60% (bridge 2026–2029) | 71.4% / 33.3% (bridge only) | {60, 75, 90}% uniform | {50, 70, 95}% (hypothetical) | 70% | 77.25% / 53.09% (OR = 3) |
 | Education-uptake sensitivity: vaccination OR ∈ {2, 3, 8} (round-2 sweep, Fig S4) | 60% | split solved for each OR at 60% aggregate | none | — | 15% | uniform |
 | Education-uptake sensitivity: screening OR ∈ {2, 5} (round-2 sweep, Fig S4) | 60% | 71.4% / 33.3% (OR = 5) | none | — | 70% | split solved for each OR at 70% aggregate |
+
+# Supplementary Table S3
+
+Table S3: Numeric results for the education-uptake OR sensitivity sweep (source for Figure S4). Cancers averted are reported for vaccine-targetable cohorts (birth cohorts 2015–2044, cumulative 2025–2100) relative to the status quo (S_sq: 60% aggregate adolescent coverage with vaccination OR = 5, 15% baseline screening; baseline is zero by construction). Median, IQR (25th–75th percentile), and 95% uncertainty interval (2.5th–97.5th percentile) are computed across 50 replicates per scenario (10 calibration draws × 5 model seeds). Positive values indicate cancers averted relative to the status quo; negative values indicate additional cancers.
+
+Panel A — Vaccination OR sweep (60% aggregate adolescent coverage, 15% baseline screening):
+
+| Vaccination OR | Median | IQR (Q25–Q75) | 95% UI (Q2.5–Q97.5) |
+|---|---|---|---|
+| 2 | 13,647 | −2,598 to 29,523 | −35,022 to 54,485 |
+| 3 | 1,895 | −14,305 to 18,530 | −39,250 to 58,826 |
+| 5 (baseline) | 0 | 0 to 0 | 0 to 0 |
+| 8 | −11,395 | −25,755 to −290 | −67,617 to 37,632 |
+
+Panel B — Screening OR sweep (70% aggregate screening scale-up, vaccination held at status-quo OR = 5, 60% aggregate):
+
+| Screening OR | Median | IQR (Q25–Q75) | 95% UI (Q2.5–Q97.5) |
+|---|---|---|---|
+| 1 (equitable; matches "Status quo vaccination with screening scale-up (equitable)" in Table 1) | 152,611 | 121,148 to 189,917 | 71,020 to 221,720 |
+| 2 | 141,150 | 107,579 to 160,850 | 70,728 to 189,172 |
+| 3 (baseline; matches "Status quo vaccination with screening scale-up (correlated)" in Table 1) | 127,213 | 100,856 to 150,794 | 55,950 to 194,746 |
+| 5 | 116,733 | 87,221 to 139,154 | 53,754 to 173,119 |
 
 Complete implementation values (per-year vaccination probabilities computed from the aggregate coverage above, screening intervention definitions, treatment cascade probabilities) are hard-coded as module-level constants in `run_scenarios.py` in the code repository and can be reproduced from the pinned commit (`requirements.txt` pins the exact HPVsim commit used to generate the paper's numbers).
 

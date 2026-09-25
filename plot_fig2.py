@@ -66,10 +66,17 @@ def _asr_panel(ax, asr, scenarios=SCENS, xlim=ASR_XLIM,
         med = sub[sub['stat'] == 'median'].set_index('year')['value'].sort_index()
         lo = sub[sub['stat'] == 'q25'].set_index('year')['value'].sort_index()
         hi = sub[sub['stat'] == 'q75'].set_index('year')['value'].sort_index()
+        lo_ui = sub[sub['stat'] == 'q025'].set_index('year')['value'].sort_index()
+        hi_ui = sub[sub['stat'] == 'q975'].set_index('year')['value'].sort_index()
         med_s = _smooth(med, smooth_window)
         lo_s = _smooth(lo, smooth_window)
         hi_s = _smooth(hi, smooth_window)
         c = SCEN_COLORS[name]
+        if not lo_ui.empty and not hi_ui.empty:
+            lo_ui_s = _smooth(lo_ui, smooth_window)
+            hi_ui_s = _smooth(hi_ui, smooth_window)
+            ax.fill_between(med_s.index, lo_ui_s.values, hi_ui_s.values,
+                            color=c, alpha=0.08, linewidth=0)
         ax.fill_between(med_s.index, lo_s.values, hi_s.values,
                         color=c, alpha=0.18)
         ax.plot(med_s.index, med_s.values, color=c, lw=2.5,
@@ -101,23 +108,32 @@ def _stack_panel(ax, stack, scenarios=SCENS):
                edgecolor='black', linewidth=0.4, label=label)
         bottom += vals
 
-    # IQR whisker on totals (stratum='all'): stack median heights are approximate;
-    # exact totals per replicate underpin q25/q75.
-    tot_med = []
-    tot_lo = []
-    tot_hi = []
+    # IQR whisker (thick, dark) + 95% UI whisker (thin, light) on totals;
+    # stack median heights are approximate, exact totals per replicate
+    # underpin the intervals.
+    tot_med, tot_lo, tot_hi, tot_lo_ui, tot_hi_ui = [], [], [], [], []
     for name in scenarios:
         sub = stack[(stack['scenario'] == name) & (stack['stratum'] == 'all')]
         med = sub[sub['stat'] == 'median']['value']
         lo = sub[sub['stat'] == 'q25']['value']
         hi = sub[sub['stat'] == 'q75']['value']
+        lo_ui = sub[sub['stat'] == 'q025']['value']
+        hi_ui = sub[sub['stat'] == 'q975']['value']
         tot_med.append(float(med.iloc[0]) if not med.empty else np.nan)
         tot_lo.append(float(lo.iloc[0]) if not lo.empty else np.nan)
         tot_hi.append(float(hi.iloc[0]) if not hi.empty else np.nan)
-    tot_med = np.asarray(tot_med); tot_lo = np.asarray(tot_lo); tot_hi = np.asarray(tot_hi)
-    yerr = np.vstack([tot_med - tot_lo, tot_hi - tot_med])
-    ax.errorbar(x + 0.2, tot_med, yerr=yerr, fmt='none',
-                ecolor='black', capsize=3, lw=0.8, zorder=5)
+        tot_lo_ui.append(float(lo_ui.iloc[0]) if not lo_ui.empty else np.nan)
+        tot_hi_ui.append(float(hi_ui.iloc[0]) if not hi_ui.empty else np.nan)
+    tot_med = np.asarray(tot_med)
+    tot_lo = np.asarray(tot_lo); tot_hi = np.asarray(tot_hi)
+    tot_lo_ui = np.asarray(tot_lo_ui); tot_hi_ui = np.asarray(tot_hi_ui)
+    if not np.isnan(tot_lo_ui).all():
+        ax.errorbar(x + 0.2, tot_med,
+                    yerr=np.vstack([tot_med - tot_lo_ui, tot_hi_ui - tot_med]),
+                    fmt='none', ecolor='0.6', capsize=2, lw=0.6, zorder=4)
+    ax.errorbar(x + 0.2, tot_med,
+                yerr=np.vstack([tot_med - tot_lo, tot_hi - tot_med]),
+                fmt='none', ecolor='black', capsize=3, lw=0.8, zorder=5)
 
     ax.set_ylim(0, 9.9e6)
     ax.set_title('B. Cumulative cancers')

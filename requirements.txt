@@ -1,0 +1,21 @@
+# Reproducibility pins for the pxv_younger paper (rc3.1.0 branch).
+#
+# HPVsim was pinned to the rc3.1.0 commit rather than a PyPI release
+# because the release-candidate branch was never cut as a formal PyPI
+# release (v3.0.0 -> v3.2.0 on PyPI/git tags). The commit hash below
+# corresponds to the state described as "v3.1.0" in the Methods section
+# of the manuscript. If a v3.1.0 git tag or PyPI release is added
+# retroactively, replace the URL below with `hpvsim==3.1.0` or
+# `hpvsim @ git+https://github.com/starsimhub/hpvsim.git@v3.1.0`.
+hpvsim @ git+https://github.com/starsimhub/hpvsim.git@76af6cc5587a3f04c9c2ab2c593e74a75f7adaac
+
+# Direct dependencies (pinned to the versions actually used to produce
+# the paper's numbers on Python 3.11).
+starsim==3.6.1
+sciris==3.3.0
+pandas==3.0.6
+numpy==2.4.6
+scipy==1.17.1
+matplotlib==3.11.2
+optuna==5.0.0
+seaborn

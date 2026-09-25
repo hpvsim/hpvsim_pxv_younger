@@ -77,10 +77,17 @@ def _timeseries_panel(ax, ts, window=TIMESERIES_WINDOW,
             med = sub[sub['stat'] == 'median'].set_index('year')['value'].sort_index()
             lo = sub[sub['stat'] == 'q25'].set_index('year')['value'].sort_index()
             hi = sub[sub['stat'] == 'q75'].set_index('year')['value'].sort_index()
+            lo_ui = sub[sub['stat'] == 'q025'].set_index('year')['value'].sort_index()
+            hi_ui = sub[sub['stat'] == 'q975'].set_index('year')['value'].sort_index()
             med_s = _smooth(med, smooth_window)
             lo_s = _smooth(lo, smooth_window)
             hi_s = _smooth(hi, smooth_window)
             c = GROUP_COLORS[group_key]
+            if not lo_ui.empty and not hi_ui.empty:
+                ax.fill_between(med_s.index,
+                                _smooth(lo_ui, smooth_window).values,
+                                _smooth(hi_ui, smooth_window).values,
+                                color=c, alpha=0.06, linewidth=0)
             if not lo_s.empty and not hi_s.empty:
                 ax.fill_between(med_s.index, lo_s.values, hi_s.values,
                                 color=c, alpha=0.12, linewidth=0)
@@ -113,6 +120,8 @@ def _averted_bars_panel(ax, bars):
     heights = []
     lo_err = []
     hi_err = []
+    lo_ui_err = []
+    hi_ui_err = []
     sq_totals = []
     labels = []
     for key, label in groups:
@@ -128,19 +137,32 @@ def _averted_bars_panel(ax, bars):
         diff_hi = bars[(bars['scenario'] == diff_scen)
                        & (bars['cohort'] == key)
                        & (bars['stat'] == 'q75')]
+        diff_lo_ui = bars[(bars['scenario'] == diff_scen)
+                          & (bars['cohort'] == key)
+                          & (bars['stat'] == 'q025')]
+        diff_hi_ui = bars[(bars['scenario'] == diff_scen)
+                          & (bars['cohort'] == key)
+                          & (bars['stat'] == 'q975')]
         sq = float(sq_row['value'].iloc[0]) if not sq_row.empty else 0
         med = float(diff_med['value'].iloc[0]) if not diff_med.empty else 0
         lo = float(diff_lo['value'].iloc[0]) if not diff_lo.empty else med
         hi = float(diff_hi['value'].iloc[0]) if not diff_hi.empty else med
+        lo_u = float(diff_lo_ui['value'].iloc[0]) if not diff_lo_ui.empty else lo
+        hi_u = float(diff_hi_ui['value'].iloc[0]) if not diff_hi_ui.empty else hi
         heights.append(med)
         lo_err.append(med - lo)
         hi_err.append(hi - med)
+        lo_ui_err.append(med - lo_u)
+        hi_ui_err.append(hi_u - med)
         sq_totals.append(sq)
         labels.append(label)
 
     x = np.arange(len(groups))
     colors = [GROUP_COLORS[k] for k, _ in groups]
     ax.bar(x, heights, color=colors, edgecolor='black', linewidth=0.5)
+    if any(v > 0 for v in lo_ui_err + hi_ui_err):
+        ax.errorbar(x, heights, yerr=np.vstack([lo_ui_err, hi_ui_err]),
+                    fmt='none', ecolor='0.6', capsize=2, lw=0.6, zorder=4)
     yerr = np.vstack([lo_err, hi_err])
     ax.errorbar(x, heights, yerr=yerr, fmt='none',
                 ecolor='black', capsize=3, lw=0.8, zorder=5)

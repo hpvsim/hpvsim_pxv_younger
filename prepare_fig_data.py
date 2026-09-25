@@ -29,9 +29,11 @@ VAXSCR_STRATA = ['unvaxunscr', 'unvaxscr', 'vaxunscr', 'vaxscr']
 DEFAULT_RAW = 'raw_results/scenarios.csv'
 DEFAULT_OUT = 'results/fig_data'
 
-# Uncertainty summary across par x seed replicates: median + IQR (q25, q75).
-# Downstream plot scripts read these three stat labels to draw bands / whiskers.
-DEFAULT_STATS = ('median', 'q25', 'q75')
+# Uncertainty summary across par x seed replicates: median + IQR (q25, q75)
+# + 95% UI (q025, q975). Downstream plot scripts filter by explicit stat
+# label so new stats are silently ignored by scripts that only read median
+# and IQR.
+DEFAULT_STATS = ('median', 'q25', 'q75', 'q025', 'q975')
 
 
 def _apply_stat(grouped, stat):
@@ -42,6 +44,10 @@ def _apply_stat(grouped, stat):
         return grouped.quantile(0.25)
     if stat == 'q75':
         return grouped.quantile(0.75)
+    if stat == 'q025':
+        return grouped.quantile(0.025)
+    if stat == 'q975':
+        return grouped.quantile(0.975)
     if stat == 'mean':
         return grouped.mean()
     return grouped.agg(stat)
@@ -171,6 +177,10 @@ def _paired_sum_diff_by_cohort_group(df, ref_scen, comp_scen, cohort_list,
             v = diff.quantile(0.25)
         elif stat == 'q75':
             v = diff.quantile(0.75)
+        elif stat == 'q025':
+            v = diff.quantile(0.025)
+        elif stat == 'q975':
+            v = diff.quantile(0.975)
         else:
             v = diff.agg(stat)
         rows.append(dict(scenario=f'{ref_scen}_minus_{comp_scen}',

@@ -76,8 +76,15 @@ def _asr_panel(ax, asr, window=TIMESERIES_WINDOW,
         med = sub[sub['stat'] == 'median'].set_index('year')['value'].sort_index()
         lo = sub[sub['stat'] == 'q25'].set_index('year')['value'].sort_index()
         hi = sub[sub['stat'] == 'q75'].set_index('year')['value'].sort_index()
+        lo_ui = sub[sub['stat'] == 'q025'].set_index('year')['value'].sort_index()
+        hi_ui = sub[sub['stat'] == 'q975'].set_index('year')['value'].sort_index()
         med_s = _smooth(med, smooth_window)
         c = SCEN_COLORS[name]
+        if not lo_ui.empty and not hi_ui.empty:
+            ax.fill_between(med_s.index,
+                            _smooth(lo_ui, smooth_window).values,
+                            _smooth(hi_ui, smooth_window).values,
+                            color=c, alpha=0.07, linewidth=0)
         if not lo.empty and not hi.empty:
             lo_s = _smooth(lo, smooth_window)
             hi_s = _smooth(hi, smooth_window)
@@ -86,7 +93,7 @@ def _asr_panel(ax, asr, window=TIMESERIES_WINDOW,
         ax.plot(med_s.index, med_s.values, color=c, lw=2.5,
                 label=SCEN_LABELS[name].replace('\n', ' '))
     ax.axhline(ASR_ELIMINATION_TARGET, color='dimgrey', lw=1, linestyle='--')
-    ax.set_xlim(window); ax.set_ylim(0, None)
+    ax.set_xlim(window); ax.set_ylim(0, 22)
     ax.set_xlabel('Year')
     ax.set_ylabel('ASR cervical cancer incidence')
     ax.set_title('A. Age-standardized incidence')
@@ -101,8 +108,14 @@ def _vt_bar_panel(ax, bars):
     heights = np.array([_stat_val(s, 'median') for s in SCENS])
     los = np.array([_stat_val(s, 'q25') for s in SCENS])
     his = np.array([_stat_val(s, 'q75') for s in SCENS])
+    los_ui = np.array([_stat_val(s, 'q025') for s in SCENS])
+    his_ui = np.array([_stat_val(s, 'q975') for s in SCENS])
     colors = [SCEN_COLORS[s] for s in SCENS]
     ax.bar(x, heights, color=colors, edgecolor='black', linewidth=0.5)
+    if (his_ui > 0).any():
+        ax.errorbar(x, heights,
+                    yerr=np.vstack([heights - los_ui, his_ui - heights]),
+                    fmt='none', ecolor='0.6', capsize=2, lw=0.6, zorder=4)
     yerr = np.vstack([heights - los, his - heights])
     ax.errorbar(x, heights, yerr=yerr, fmt='none',
                 ecolor='black', capsize=3, lw=0.8, zorder=5)

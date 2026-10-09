@@ -98,7 +98,7 @@ SCENARIO_NAMES = [
 # analysis (round-2 reviewer comment 1). Kept as a SEPARATE list from
 # SCENARIO_NAMES so existing aggregate_partials / prepare_fig_data flows
 # are unaffected. Runs via ``run_or_sweep`` / ``--sweep`` and are
-# processed by a dedicated plot script (plot_figS4_or_sweep.py).
+# processed by a dedicated plot script (plot_figS3_or_sweep.py).
 #
 # vax_OR sweep: SQ scenario (60% aggregate coverage, 15% baseline
 # screening, screening_OR=3) with vax_OR varied. Baseline vax_OR=5 is

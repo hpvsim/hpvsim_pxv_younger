@@ -26,7 +26,7 @@ model.py                 Nigeria sim builder (transmission, network, demography)
 plot_common.py           Shared styling + query helpers for main figures
 plot_fig{1,2,3,4,5}.py   Main manuscript figures
 prepare_fig_data.py      Aggregates per-scenario partials -> per-figure summary CSVs
-plot_figS{1,2,3}_*.py    Supplementary figures
+plot_figS{1,2,3}_*.py    Supplementary figures (calibration, timeseries, OR sweep)
 plot_table_pars.py       Parameter appendix table (Supp Table S1)
 run_calibration.py       Calibration entry point
 utils.py                 Font / layout helpers
@@ -58,9 +58,9 @@ Each figure script has two modes: the heavy step (calibration or scenario ensemb
 
 | Figure | Script | Story | Data |
 |---|---|---|---|
-| **Fig S1** | `plot_figS1_behavior.py` | Sexual-behavior calibration inputs | Model outputs vs DHS |
-| **Fig S2** | `plot_figS2_calibration.py` | Calibration fit to Nigeria HPV / CIN / cancer targets | Trial ranges from shrunk calib |
-| **Fig S3** | `plot_figS3_timeseries.py` | HPV prevalence + ASR time series with top-N trial uncertainty | `hpv.make_calib_sims` rerun outputs |
+| **Fig S1** | `plot_figS1_calibration.py` | Calibration fit to Nigeria HPV / CIN / cancer targets | Trial ranges from shrunk calib |
+| **Fig S2** | `plot_figS2_timeseries.py` | HPV / CIN prevalence + ASR time series with top-N trial uncertainty | `hpv.make_calib_sims` rerun outputs |
+| **Fig S3** | `plot_figS3_or_sweep.py` | Education-uptake OR sensitivity sweep (vaccination + screening) | Scenario partials in `raw_results/` |
 | **Table S1** | `plot_table_pars.py` | Calibrated + fixed parameter table (CSV + LaTeX) | Calibration artifacts + `model.py` |
 
 ## Running the scenario ensemble
@@ -110,9 +110,9 @@ python plot_fig2.py                                          # SQ profile
 python plot_fig3.py                                          # screening scale-up
 python plot_fig4.py                                          # infant vax + efficacy
 python plot_fig5.py                                          # infant coverage × efficacy
-python plot_figS1_behavior.py                                # supp behaviour
-python plot_figS2_calibration.py                             # supp calib
-python plot_figS3_timeseries.py                              # supp timeseries
+python plot_figS1_calibration.py                             # supp calibration fit
+python plot_figS2_timeseries.py                              # supp timeseries
+python plot_figS3_or_sweep.py                                # supp OR sensitivity sweep
 python plot_table_pars.py                                    # supp Table S1
 ```
 

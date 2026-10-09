@@ -32,9 +32,9 @@ def network_pars():
         [0, 0,  0,  0.1,   0.5,  0.5,  0.4,   0.2,   0.2,  0.4,  0.4,  0.4, 0.2,  0.1,  0.05,  0.01],
     ])
     # layer_probs are willingness-to-engage upper bounds; the actual paired-
-    # partnership rate in the sim ends up notably lower (see figS1 panel C
-    # in the kaz repo). Bumping toward Kaz-style near-saturation for young
-    # ages so calibration has HPV-transmission headroom.
+    # partnership rate in the sim ends up notably lower. Bumping toward
+    # Kaz-style near-saturation for young ages so calibration has
+    # HPV-transmission headroom.
     _HI = 1.0 - 1e-10
     # pars['layer_probs_casual'] = np.array([
     #     [0, 5, 10,  15,  20,  25,  30,  35,  40,  45,  50,  55,   60,   65,   70,   75],

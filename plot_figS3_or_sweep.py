@@ -1,4 +1,4 @@
-"""Fig S4 - education-uptake OR sensitivity sweep.
+"""Fig S3 - education-uptake OR sensitivity sweep.
 
 Two panels, both plotting cancers averted (vax-targetable cohorts,
 2025-2100) as a function of the education odds ratio, with the paper's
@@ -122,7 +122,7 @@ def _panel(ax, sub, title, xlabel):
     sc.SIticks(ax)
 
 
-def plot_figS4(outpath='figures/figS4.png', data_out=None):
+def plot_figS3(outpath='figures/figS3.png', data_out=None):
     ut.set_font(11)
     summary = build_summary()
 
@@ -161,9 +161,9 @@ def plot_figS4(outpath='figures/figS4.png', data_out=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--outpath', default='figures/figS4.png')
+    parser.add_argument('--outpath', default='figures/figS3.png')
     parser.add_argument('--data-out',
-                        default='results/fig_data/figS4_data.csv',
+                        default='results/fig_data/figS3_data.csv',
                         help='numeric summary CSV (Supp. Table S3 source)')
     args = parser.parse_args()
-    plot_figS4(outpath=args.outpath, data_out=args.data_out)
+    plot_figS3(outpath=args.outpath, data_out=args.data_out)

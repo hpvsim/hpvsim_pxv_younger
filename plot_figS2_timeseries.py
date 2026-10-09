@@ -3,9 +3,9 @@ Plot Nigeria HPV / CIN prevalence + ASR cancer incidence time series with
 top-N trial uncertainty ribbons.
 
 Two modes:
-  python plot_figS3_timeseries.py --run-sims   # rerun top-N calib trials,
+  python plot_figS2_timeseries.py --run-sims   # rerun top-N calib trials,
                                                 #   save CSV (VM-side)
-  python plot_figS3_timeseries.py              # plot from saved CSV (local)
+  python plot_figS2_timeseries.py              # plot from saved CSV (local)
 
 Rerun uses ``hpv.make_calib_sims`` with an ``extract_fn`` so only per-year
 arrays (not full sims) come back from workers. Extracted long-format CSV
@@ -29,8 +29,8 @@ AGE_EDGES = np.array([0, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80,
 
 def _extract(sim):
     """Return dict of per-year 1D arrays. Runs in the worker subprocess."""
-    ar = sim.analyzers['figS3_by_age']
-    ap = sim.analyzers['figS3_age_pyramid']
+    ar = sim.analyzers['figS2_by_age']
+    ap = sim.analyzers['figS2_age_pyramid']
     all_hpv = sim.results['all_hpv']
 
     precin = ar.to_dataframe('precin_prevalence')  # (n_years, n_bins)
@@ -71,7 +71,7 @@ def _extract(sim):
 
 
 def run_and_save(calib_path='results/nigeria_calib.obj',
-                 out_csv='results/figS3_timeseries.csv',
+                 out_csv='results/figS2_timeseries.csv',
                  top_n=TOP_N):
     calib = sc.load(calib_path)
     stop_year = int(calib.sim.pars.stop.years if hasattr(calib.sim.pars.stop, 'years')
@@ -81,9 +81,9 @@ def run_and_save(calib_path='results/nigeria_calib.obj',
     def analyzers_factory():
         return [
             hpv.by_age(['precin_prevalence', 'cin_prevalence'],
-                       years=years, edges=AGE_EDGES, name='figS3_by_age'),
+                       years=years, edges=AGE_EDGES, name='figS2_by_age'),
             hpv.age_pyramid(timepoints=[f'{y}-01-01' for y in years],
-                            edges=AGE_EDGES, name='figS3_age_pyramid'),
+                            edges=AGE_EDGES, name='figS2_age_pyramid'),
         ]
 
     results = hpv.make_calib_sims(
@@ -120,8 +120,16 @@ def _plot(ax, df, col, title, ylabel, color):
     ax.legend(fontsize=9, loc='best')
 
 
-def plot(in_csv='results/figS3_timeseries.csv',
-         outpath='figures/figS3_timeseries.png'):
+def _overlay_asr_target(ax, target_csv='data/nigeria_asr_cancer_incidence.csv'):
+    """Overlay the Globocan ASR calibration target as a single data point."""
+    tdf = pd.read_csv(target_csv)
+    ax.scatter(tdf['year'].values, tdf['value'].values,
+               marker='d', s=48, color='k', zorder=5, label='Globocan 2020')
+    ax.legend(fontsize=9, loc='best')
+
+
+def plot(in_csv='results/figS2_timeseries.csv',
+         outpath='figures/figS2_timeseries.png'):
     df = pd.read_csv(in_csv)
     ut.set_font(12)
     fig, axes = plt.subplots(1, 3, figsize=(16, 4.5), layout='tight')
@@ -134,6 +142,7 @@ def plot(in_csv='results/figS3_timeseries.csv',
     _plot(axes[2], df, 'asr',
           'Age-standardized cancer incidence',
           'ASR per 100,000 (WHO 2000)', '#a63636')
+    _overlay_asr_target(axes[2])
     fig.savefig(outpath, dpi=150)
     print(f'saved {outpath}')
     return fig
@@ -145,11 +154,11 @@ if __name__ == '__main__':
     parser.add_argument('--run-sims', action='store_true',
                         help='Rerun top-N calib trials + save CSV (VM-side).')
     parser.add_argument('--top-n', type=int, default=TOP_N)
-    parser.add_argument('--csv', default='results/figS3_timeseries.csv')
-    parser.add_argument('--outpath', default='figures/figS3_timeseries.png')
+    parser.add_argument('--csv', default='results/figS2_timeseries.csv')
+    parser.add_argument('--outpath', default='figures/figS2_timeseries.png')
     args = parser.parse_args()
 
     if args.run_sims:
         run_and_save(out_csv=args.csv, top_n=args.top_n)
     plot(in_csv=args.csv, outpath=args.outpath)
-    T.toc('figS3 done')
+    T.toc('figS2 done')

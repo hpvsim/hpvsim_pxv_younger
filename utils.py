@@ -387,7 +387,7 @@ def get_sb_from_sims(pars=None, debug=False, verbose=-1):
     mixing_df.to_csv('results/age_mixing_hist.csv', index=False)
 
     # Partnership status by age bin × sex: % of alive level0 agents with >=1
-    # partner in each layer at end-of-sim. Matches kaz figS1 panel C.
+    # partner in each layer at end-of-sim.
     layer_id = np.asarray(net.edges.layer_id)
     m_edges = layer_id == net._layer_idx['m']
     c_edges = layer_id == net._layer_idx['c']
